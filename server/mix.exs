@@ -22,7 +22,8 @@ defmodule NixRelayServer.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:bandit, "~> 1.0"}
+      {:bandit, "~> 1.0"},
+      {:websock_adapter, "~> 0.5"}
     ]
   end
 end

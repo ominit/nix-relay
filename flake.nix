@@ -26,11 +26,12 @@
 
       craneLib = crane.mkLib pkgs;
 
-      clientBuildDeps = with pkgs; [rust-bin.stable.latest.default];
+      workerBuildDeps = with pkgs; [rust-bin.stable.latest.default pkg-config openssl];
       serverBuildDeps = with pkgs; [elixir mix2nix];
     in {
       devShell = pkgs.mkShell {
-        inherit clientBuildDeps serverBuildDeps;
+        inherit serverBuildDeps workerBuildDeps;
+        PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
       };
     });
 }

@@ -4,8 +4,7 @@ defmodule NixRelayServer.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      {Bandit, plug: NixRelayServer.Router, scheme: :http, port: 4000},
-      NixRelayServer.BuildQueue
+      {Bandit, plug: NixRelayServer.Router, scheme: :http, port: 4000}
     ]
 
     opts = [strategy: :one_for_one, name: NixRelayServer.Supervisor]

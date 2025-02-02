@@ -4,15 +4,17 @@ defmodule NixRelayServer.Router do
   plug(:match)
   plug(:dispatch)
 
+  get "/ws" do
+    conn
+    |> WebSockAdapter.upgrade(NixRelayServer.WebSocketHandler, [], [])
+    |> halt()
+  end
+
   post "/upload/:hash" do
     hash = conn.params["hash"]
-    {:ok, body, _} =  read_body(conn)
 
-    :ok = File.write!("/tmp/nix_cache/nar/#{hash}.nar.xz", body)
-
-    narinfo = "fake nar info"
-    File.write!("/tmp/nix_cache/info/#{hash}.narinfo", narinfo)
-    
+    # :ok = File.write!(nix_cache/info/#{hash}.nar.xz)
+    # :ok = File.write!(nix_cache/info/#{hash}.narinfo)
     IO.puts("uploaded #{hash}")
     send_resp(conn, 200, "Uploaded #{hash}")
   end
@@ -61,7 +63,7 @@ defmodule NixRelayServer.Router do
   end
 
   match _ do
-    IO.puts("404")
+    IO.puts("unknown request recieved")
     send_resp(conn, 404, "Not found")
   end
 end
