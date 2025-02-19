@@ -4,9 +4,15 @@ defmodule NixRelayServer.Router do
   plug(:match)
   plug(:dispatch)
 
-  get "/ws" do
+  get "/worker" do
     conn
-    |> WebSockAdapter.upgrade(NixRelayServer.WebSocketHandler, [], [])
+    |> WebSockAdapter.upgrade(NixRelayServer.WorkerWebSocketHandler, [], [])
+    |> halt()
+  end
+
+  get "/client" do
+    conn
+    |> WebSockAdapter.upgrade(NixRelayServer.ClientWebSocketHandler, [], [])
     |> halt()
   end
 
@@ -21,6 +27,7 @@ defmodule NixRelayServer.Router do
 
   get "/:hash.narinfo" do
     hash = conn.params["hash"]
+    IO.inspect(conn, label: "Test")
     file_path = "/tmp/nix_cache/info/#{hash}.narinfo"
     IO.puts("narhash #{hash}")
 
@@ -29,8 +36,18 @@ defmodule NixRelayServer.Router do
         send_resp(conn, 200, content)
 
       {:error, _} ->
-        NixRelayServer.BuildQueue.add(hash)
-        send_resp(conn, 404, "Not found")
+        NixRelayServer.BuildQueue.add_job(hash)
+        NixRelayServer.BuildQueue.register_waiting_client(hash, self())
+
+        receive do
+          {:build_complete, ^hash, true} ->
+            send_resp(conn, 200, Cache.get!(hash))
+
+          {:build_complete, ^hash, false} ->
+            send_resp(conn, 500, "Build failed")
+        after
+          300_000 -> send_resp(conn, 504, "Timeout")
+        end
     end
   end
 
@@ -46,8 +63,18 @@ defmodule NixRelayServer.Router do
         |> send_resp(200, content)
 
       {:error, _} ->
-        NixRelayServer.BuildQueue.add(hash)
-        send_resp(conn, 404, "Not found")
+        NixRelayServer.BuildQueue.add_job(hash)
+        NixRelayServer.BuildQueue.register_waiting_client(hash, self())
+
+        receive do
+          {:build_complete, ^hash, true} ->
+            send_resp(conn, 200, Cache.get!(hash))
+
+          {:build_complete, ^hash, false} ->
+            send_resp(conn, 500, "Build failed")
+        after
+          300_000 -> send_resp(conn, 504, "Timeout")
+        end
     end
   end
 
