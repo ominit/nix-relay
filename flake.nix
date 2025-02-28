@@ -30,7 +30,7 @@
       serverBuildDeps = with pkgs; [elixir mix2nix];
     in {
       devShell = pkgs.mkShell {
-        inherit serverBuildDeps workerBuildDeps;
+        packages = [] ++ serverBuildDeps ++ workerBuildDeps;
         PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
       };
     });

@@ -16,38 +16,50 @@ defmodule NixRelayServer.Router do
     |> halt()
   end
 
-  post "/upload/:hash" do
+  put "/nar/:hash.nar.xz" do
     hash = conn.params["hash"]
 
-    # :ok = File.write!(nix_cache/info/#{hash}.nar.xz)
-    # :ok = File.write!(nix_cache/info/#{hash}.narinfo)
-    IO.puts("uploaded #{hash}")
-    send_resp(conn, 200, "Uploaded #{hash}")
+    {:ok, body, conn} = Plug.Conn.read_body(conn, length: 100_000_000)
+
+    case NixRelayServer.Cache.store_nar(hash, body) do
+      :ok ->
+        IO.puts("uploaded #{hash}.nar.xz")
+        send_resp(conn, 200, "Uploaded #{hash}.nar.xz")
+
+      :error ->
+        IO.puts("failed to upload #{hash}.nar.xz")
+        send_resp(conn, 500, "Failed to upload #{hash}.nar.xz")
+    end
+  end
+
+  put "/:hash.narinfo" do
+    hash = conn.params["hash"]
+
+    {:ok, body, conn} = Plug.Conn.read_body(conn, length: 100_000_000)
+
+    case NixRelayServer.Cache.store_narinfo(hash, body) do
+      :ok ->
+        IO.puts("uploaded #{hash}.narinfo")
+        send_resp(conn, 200, "Uploaded #{hash}.narinfo")
+
+      :error ->
+        IO.puts("failed to upload #{hash}.narinfo")
+        send_resp(conn, 500, "Failed to upload #{hash}.narinfo")
+    end
   end
 
   get "/:hash.narinfo" do
     hash = conn.params["hash"]
     IO.inspect(conn, label: "Test")
-    file_path = "/tmp/nix_cache/info/#{hash}.narinfo"
+    # file_path = "/tmp/nix_cache/info/#{hash}.narinfo"
     IO.puts("narhash #{hash}")
 
-    case File.read(file_path) do
-      {:ok, content} ->
-        send_resp(conn, 200, content)
+    case NixRelayServer.Cache.check_if_in_store(hash) do
+      {:ok} ->
+        send_resp(conn, 200, "Found")
 
-      {:error, _} ->
-        NixRelayServer.BuildQueue.add_job(hash)
-        NixRelayServer.BuildQueue.register_waiting_client(hash, self())
-
-        receive do
-          {:build_complete, ^hash, true} ->
-            send_resp(conn, 200, Cache.get!(hash))
-
-          {:build_complete, ^hash, false} ->
-            send_resp(conn, 500, "Build failed")
-        after
-          300_000 -> send_resp(conn, 504, "Timeout")
-        end
+      {:error} ->
+        send_resp(conn, 404, "Not found")
     end
   end
 
@@ -63,18 +75,19 @@ defmodule NixRelayServer.Router do
         |> send_resp(200, content)
 
       {:error, _} ->
-        NixRelayServer.BuildQueue.add_job(hash)
-        NixRelayServer.BuildQueue.register_waiting_client(hash, self())
+        send_resp(conn, 404, "Not found")
+        # NixRelayServer.BuildQueue.add_job(hash)
+        # NixRelayServer.BuildQueue.register_waiting_client(hash, self())
 
-        receive do
-          {:build_complete, ^hash, true} ->
-            send_resp(conn, 200, Cache.get!(hash))
+        # receive do
+        #   {:build_complete, ^hash, true} ->
+        #     send_resp(conn, 200, Cache.get!(hash))
 
-          {:build_complete, ^hash, false} ->
-            send_resp(conn, 500, "Build failed")
-        after
-          300_000 -> send_resp(conn, 504, "Timeout")
-        end
+        #   {:build_complete, ^hash, false} ->
+        #     send_resp(conn, 500, "Build failed")
+        # after
+        #   300_000 -> send_resp(conn, 504, "Timeout")
+        # end
     end
   end
 
@@ -83,13 +96,8 @@ defmodule NixRelayServer.Router do
     send_resp(conn, 200, "Storedir: /nix/store")
   end
 
-  get ":a" do
-    a = conn.params["a"]
-    IO.puts("unknown #{a}")
-    send_resp(conn, 404, "Not found")
-  end
-
   match _ do
+    IO.inspect(conn)
     IO.puts("unknown request recieved")
     send_resp(conn, 404, "Not found")
   end

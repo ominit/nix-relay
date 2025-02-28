@@ -11,7 +11,8 @@ defmodule NixRelayServer.ClientWebSocketHandler do
   end
 
   def handle_info({:complete, derivation, success}, state) do
-    {:push, {:text, "complete #{derivation}"}, state}
+    {:ok, nar} = NixRelayServer.Cache.get_nar(derivation)
+    {:push, {:binary, nar}, state}
   end
 
   # Invoked when the connection is closed

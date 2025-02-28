@@ -27,9 +27,16 @@ defmodule NixRelayServer.BuildQueue do
     {:noreply, {queue, pending, workers}}
   end
 
-  def handle_cast({:remove_worker, pid}, {queue, pending, workers}) do
-    workers = :queue.delete(workers, pid)
-    {:noreply, {queue, pending, workers}}
+  def handle_cast({:remove_worker, worker_pid}, {queue, pending, workers}) do
+    case(Map.pop(pending, worker_pid)) do
+      {nil, ^pending} ->
+        new_workers = :queue.delete(worker_pid, workers)
+        {:noreply, {queue, pending, new_workers}}
+
+      {job, new_pending} ->
+        new_queue = :queue.in(job, queue)
+        {:noreply, {new_queue, new_pending, workers}}
+    end
   end
 
   def handle_cast({:complete, worker_pid, success}, {queue, pending, workers}) do
@@ -38,6 +45,7 @@ defmodule NixRelayServer.BuildQueue do
         {:noreply, {queue, pending, workers}}
 
       {{client_pid, derivation, _}, pending} ->
+        IO.puts("buildqueue send to client #{derivation}")
         send(client_pid, {:complete, derivation, success})
         {queue, pending, workers} = give_job({queue, pending, workers})
         {:noreply, {queue, pending, workers}}

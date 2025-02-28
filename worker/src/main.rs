@@ -5,11 +5,12 @@ use tokio::{process::Command, time::sleep};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 const URL: &str = "ws://localhost:4000/worker";
+const UPLOAD_URL: &str = "http://localhost:4000";
 const TEMP_STORE_DIR: &str = "./../temp-store-worker/";
 
 #[tokio::main]
 async fn main() {
-    'outer: loop {
+    loop {
         let mut ws_stream;
         loop {
             let test = connect_async(URL.to_string()).await;
@@ -48,12 +49,27 @@ async fn main() {
                             let result = build_derivation(&derivation, &data).await;
 
                             match result {
-                                Ok(path) => {
+                                Ok(_) => {
                                     println!("Build successful");
-                                    let export =
-                                        std::fs::read(format!("{}/{}", TEMP_STORE_DIR, path))
-                                            .unwrap();
-                                    ws_stream.send(Message::binary(export)).await.unwrap();
+                                    Command::new("nix")
+                                        .arg("copy")
+                                        .arg("--from")
+                                        .arg(TEMP_STORE_DIR)
+                                        .arg("--to")
+                                        .arg(UPLOAD_URL)
+                                        .arg("--all")
+                                        .arg("-v")
+                                        .output()
+                                        .await
+                                        .map_err(|e| e.to_string())
+                                        .unwrap();
+                                    ws_stream
+                                        .send(Message::text(format!(
+                                            "complete true {}",
+                                            derivation
+                                        )))
+                                        .await
+                                        .unwrap();
                                     println!("Sent Binary");
                                 }
                                 Err(e) => {
@@ -69,14 +85,20 @@ async fn main() {
                             }
                         }
                     }
-                    _ => {}
+                    Message::Close(_) => {
+                        println!("disconnected");
+                        break;
+                    }
+                    other => {
+                        println!("received {:?}", other);
+                    }
                 }
             }
         }
     }
 }
 
-async fn build_derivation(derivation: &str, data: &str) -> Result<String, String> {
+async fn build_derivation(derivation: &str, data: &str) -> Result<(), String> {
     let mut command = Command::new("nix-store");
     let build_output = command
         .arg("--realize")
@@ -90,9 +112,7 @@ async fn build_derivation(derivation: &str, data: &str) -> Result<String, String
     println!("{:?}", build_output);
 
     if build_output.status.success() {
-        Ok(String::from_utf8_lossy(&build_output.stdout)
-            .into_owned()
-            .replace("\n", ""))
+        Ok(())
     } else {
         Err(String::from_utf8_lossy(&build_output.stderr).into_owned())
     }

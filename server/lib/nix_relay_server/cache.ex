@@ -9,10 +9,36 @@ defmodule NixRelayServer.Cache do
   end
 
   @doc """
+  Checks if the hash is in the nix store
+  """
+  def check_if_in_store(hash) do
+    case(File.read(narinfo_path(hash))) do
+      {:ok, _} -> {:ok}
+      {:error, _} -> {:error}
+    end
+  end
+
+  @doc """
   Retrieve the .narinfo file for a derivation.
   """
   def get(derivation) do
+    derivation = String.replace(derivation, "/nix/store/", "")
+    derivation = String.replace(derivation, ".tar.xz.drv", "")
+
     case File.read(narinfo_path(derivation)) do
+      {:ok, content} -> {:ok, content}
+      {:error, _} -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Retrieve the .nar.xz file for the derivation
+  """
+  def get_nar(derivation) do
+    derivation = String.replace(derivation, "/nix/store/", "")
+    derivation = String.replace(derivation, ".tar.xz.drv", "")
+
+    case File.read(nar_path(derivation)) do
       {:ok, content} -> {:ok, content}
       {:error, _} -> {:error, :not_found}
     end
@@ -21,16 +47,31 @@ defmodule NixRelayServer.Cache do
   @doc """
   Store a derivation's artifact and generate its .narinfo metadata
   """
-  def store(derivation, artifact_binary) do
-    derivation = String.replace(derivation, "/nix/store/", "")
-    derivation = String.replace(derivation, ".tar.xz.drv", "")
-
+  def store_nar(derivation, artifact_binary) do
     nar_path = nar_path(derivation)
-    File.write!(nar_path, artifact_binary)
 
-    narinfo_content = generate_narinfo(derivation, artifact_binary)
-    File.write!(narinfo_path(derivation), narinfo_content)
-    :ok
+    case File.write(nar_path, artifact_binary) do
+      :ok ->
+        :ok
+
+      {:error, _} ->
+        :error
+    end
+  end
+
+  @doc """
+  Store a derivation's artifact and generate its .narinfo metadata
+  """
+  def store_narinfo(derivation, artifact_binary) do
+    narinfo_path = narinfo_path(derivation)
+
+    case File.write(narinfo_path, artifact_binary) do
+      :ok ->
+        :ok
+
+      {:error, _} ->
+        :error
+    end
   end
 
   defp nar_path(derivation), do: Path.join(@nar_dir, "#{derivation}.nar.xz")
