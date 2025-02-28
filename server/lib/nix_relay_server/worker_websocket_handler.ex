@@ -11,7 +11,7 @@ defmodule NixRelayServer.WorkerWebSocketHandler do
 
   def handle_in({"complete " <> rest, [opcode: :text]}, state) do
     [success, derivation] = String.split(rest, " ")
-    success = success == "true"
+    # success = success == "true"
     IO.puts("complete #{derivation} #{success}")
     NixRelayServer.BuildQueue.complete(self(), success)
     {:ok, state}

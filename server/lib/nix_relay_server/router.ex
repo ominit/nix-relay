@@ -50,11 +50,9 @@ defmodule NixRelayServer.Router do
 
   get "/:hash.narinfo" do
     hash = conn.params["hash"]
-    IO.inspect(conn, label: "Test")
-    # file_path = "/tmp/nix_cache/info/#{hash}.narinfo"
-    IO.puts("narhash #{hash}")
+    IO.puts("narinfo #{hash}")
 
-    case NixRelayServer.Cache.check_if_in_store(hash) do
+    case NixRelayServer.Cache.check_if_narinfo_in_store(hash) do
       {:ok} ->
         send_resp(conn, 200, "Found")
 
@@ -63,31 +61,29 @@ defmodule NixRelayServer.Router do
     end
   end
 
-  get "/:hash.nar.xz" do
+  head "/:hash.narinfo" do
     hash = conn.params["hash"]
-    file_path = "/tmp/nix_cache/nar/#{hash}.nar.xz"
-    IO.puts("nar #{hash}")
+    IO.puts("narinfo #{hash}")
 
-    case File.read(file_path) do
-      {:ok, content} ->
-        conn
-        |> put_resp_header("content-type", "application/x-xz")
-        |> send_resp(200, content)
+    case NixRelayServer.Cache.check_if_narinfo_in_store(hash) do
+      {:ok} ->
+        send_resp(conn, 200, "Found")
 
-      {:error, _} ->
+      {:error} ->
         send_resp(conn, 404, "Not found")
-        # NixRelayServer.BuildQueue.add_job(hash)
-        # NixRelayServer.BuildQueue.register_waiting_client(hash, self())
+    end
+  end
 
-        # receive do
-        #   {:build_complete, ^hash, true} ->
-        #     send_resp(conn, 200, Cache.get!(hash))
+  get "/nar/:hash.nar.xz" do
+    hash = conn.params["hash"]
+    IO.puts("nar.xz #{hash}")
 
-        #   {:build_complete, ^hash, false} ->
-        #     send_resp(conn, 500, "Build failed")
-        # after
-        #   300_000 -> send_resp(conn, 504, "Timeout")
-        # end
+    case NixRelayServer.Cache.get_nar(hash) do
+      {:ok, content} ->
+        send_resp(conn, 200, content)
+
+      {:error, :notfound} ->
+        send_resp(conn, 404, "Not found")
     end
   end
 

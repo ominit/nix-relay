@@ -9,10 +9,20 @@ defmodule NixRelayServer.Cache do
   end
 
   @doc """
-  Checks if the hash is in the nix store
+  Checks if the narinfo hash is in the nix store
   """
-  def check_if_in_store(hash) do
+  def check_if_narinfo_in_store(hash) do
     case(File.read(narinfo_path(hash))) do
+      {:ok, _} -> {:ok}
+      {:error, _} -> {:error}
+    end
+  end
+
+  @doc """
+  Checks if the nar hash is in the nix store
+  """
+  def check_if_nar_in_store(hash) do
+    case(File.read(nar_path(hash))) do
       {:ok, _} -> {:ok}
       {:error, _} -> {:error}
     end
@@ -23,7 +33,7 @@ defmodule NixRelayServer.Cache do
   """
   def get(derivation) do
     derivation = String.replace(derivation, "/nix/store/", "")
-    derivation = String.replace(derivation, ".tar.xz.drv", "")
+    derivation = String.replace(derivation, ".tar.gz.drv", "")
 
     case File.read(narinfo_path(derivation)) do
       {:ok, content} -> {:ok, content}
@@ -36,7 +46,8 @@ defmodule NixRelayServer.Cache do
   """
   def get_nar(derivation) do
     derivation = String.replace(derivation, "/nix/store/", "")
-    derivation = String.replace(derivation, ".tar.xz.drv", "")
+    derivation = String.slice(derivation, 0, 52)
+    IO.puts(nar_path(derivation))
 
     case File.read(nar_path(derivation)) do
       {:ok, content} -> {:ok, content}

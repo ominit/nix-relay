@@ -18,8 +18,10 @@ async fn main() {
                 ws_stream = test.unwrap().0;
                 break;
             }
-            sleep(Duration::from_secs(3)).await;
+            sleep(Duration::from_secs(2)).await;
         }
+
+        let _ = std::fs::create_dir(TEMP_STORE_DIR);
 
         println!("registering");
         ws_stream.send(Message::text("register")).await.unwrap();
@@ -51,18 +53,19 @@ async fn main() {
                             match result {
                                 Ok(_) => {
                                     println!("Build successful");
-                                    Command::new("nix")
+                                    let output = Command::new("nix")
                                         .arg("copy")
                                         .arg("--from")
                                         .arg(TEMP_STORE_DIR)
                                         .arg("--to")
                                         .arg(UPLOAD_URL)
-                                        .arg("--all")
+                                        .arg(&derivation)
                                         .arg("-v")
                                         .output()
                                         .await
                                         .map_err(|e| e.to_string())
                                         .unwrap();
+                                    println!("{:?}", output);
                                     ws_stream
                                         .send(Message::text(format!(
                                             "complete true {}",
@@ -71,6 +74,7 @@ async fn main() {
                                         .await
                                         .unwrap();
                                     println!("Sent Binary");
+                                    break;
                                 }
                                 Err(e) => {
                                     eprintln!("Build failed: {}", e);
@@ -109,7 +113,7 @@ async fn build_derivation(derivation: &str, data: &str) -> Result<(), String> {
         .output()
         .await
         .map_err(|e| e.to_string())?;
-    println!("{:?}", build_output);
+    println!("{:?}", build_output.status);
 
     if build_output.status.success() {
         Ok(())
