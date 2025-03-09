@@ -1,12 +1,11 @@
 defmodule NixRelayServer.Cache do
-  @cache_dir "./../temp-store-server/"
-  @nar_dir Path.join(@cache_dir, "nar")
-  @info_dir Path.join(@cache_dir, "info")
-
   def setup() do
-    File.mkdir_p!(@nar_dir)
-    File.mkdir_p!(@info_dir)
+    File.mkdir_p!(nar_dir())
+    File.mkdir_p!(info_dir())
   end
+
+  defp nar_dir, do: Path.join(NixRelayServer.Config.get("cache_dir"), "nar")
+  defp info_dir, do: Path.join(NixRelayServer.Config.get("cache_dir"), "info")
 
   @doc """
   Checks if the narinfo hash is in the nix store
@@ -31,7 +30,7 @@ defmodule NixRelayServer.Cache do
   @doc """
   Retrieve the .narinfo file for a derivation.
   """
-  def get(derivation) do
+  def get_narinfo(derivation) do
     derivation = String.replace(derivation, "/nix/store/", "")
     derivation = String.replace(derivation, ".tar.gz.drv", "")
 
@@ -56,7 +55,7 @@ defmodule NixRelayServer.Cache do
   end
 
   @doc """
-  Store a derivation's artifact and generate its .narinfo metadata
+  Store a derivation's artifact
   """
   def store_nar(derivation, artifact_binary) do
     nar_path = nar_path(derivation)
@@ -71,7 +70,7 @@ defmodule NixRelayServer.Cache do
   end
 
   @doc """
-  Store a derivation's artifact and generate its .narinfo metadata
+  Store a derivation's .narinfo metadata
   """
   def store_narinfo(derivation, artifact_binary) do
     narinfo_path = narinfo_path(derivation)
@@ -85,8 +84,8 @@ defmodule NixRelayServer.Cache do
     end
   end
 
-  defp nar_path(derivation), do: Path.join(@nar_dir, "#{derivation}.nar.xz")
-  defp narinfo_path(derivation), do: Path.join(@info_dir, "#{derivation}.narinfo")
+  defp nar_path(derivation), do: Path.join(nar_dir(), "#{derivation}.nar.xz")
+  defp narinfo_path(derivation), do: Path.join(info_dir(), "#{derivation}.narinfo")
 
   defp generate_narinfo(derivation, artifact_binary) do
     narhash = :crypto.hash(:sha256, artifact_binary) |> Base.encode16(case: :lower)

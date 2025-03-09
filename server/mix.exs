@@ -7,7 +7,8 @@ defmodule NixRelayServer.MixProject do
       version: "0.1.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      aliases: [test: "test --no-start"]
     ]
   end
 
@@ -23,7 +24,8 @@ defmodule NixRelayServer.MixProject do
   defp deps do
     [
       {:bandit, "~> 1.0"},
-      {:websock_adapter, "~> 0.5"}
+      {:websock_adapter, "~> 0.5"},
+      {:toml, "~> 0.7.0"}
     ]
   end
 end
