@@ -21,16 +21,6 @@ jobs:
       - name: Setup Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
 
-      - name: Cache Nix store
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/nix
-            /nix/store
-          key: ${{ runner.os }}-nix-${{ hashFiles('**/flake.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-nix-
-
       - name: Cache server dependencies
         uses: actions/cache@v3
         with:
