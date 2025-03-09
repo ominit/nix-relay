@@ -47,8 +47,9 @@ defmodule NixRelayServer.BuildQueue do
       {{client_pid, derivation, _}, pending} ->
         IO.puts("buildqueue send to client #{derivation}")
         send(client_pid, {:complete, derivation, success})
-        {queue, pending, workers} = give_job({queue, pending, workers})
-        {:noreply, {queue, pending, workers}}
+        new_workers = :queue.in(worker_pid, workers)
+        {new_queue, new_pending, final_workers} = give_job({queue, pending, new_workers})
+        {:noreply, {new_queue, new_pending, final_workers}}
     end
   end
 

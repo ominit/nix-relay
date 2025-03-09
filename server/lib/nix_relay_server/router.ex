@@ -82,7 +82,7 @@ defmodule NixRelayServer.Router do
       {:ok, content} ->
         send_resp(conn, 200, content)
 
-      {:error, :notfound} ->
+      {:error, :not_found} ->
         send_resp(conn, 404, "Not found")
     end
   end

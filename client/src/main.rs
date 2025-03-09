@@ -61,19 +61,6 @@ async fn main() {
                     std::process::exit(0);
                 }
                 Message::Binary(_) => {
-                    // let output_path =
-                    //     std::env::var("out").expect("$out environment variable not set");
-                    // // let tmp_path = format!(
-                    // //     "/tmp/{}.nar.xz",
-                    // //     drv_path
-                    // //         .replace("tar.xz.drv", "nar.xz")
-                    // //         .replace("/nix/store/", "")
-                    // // );
-                    // eprintln!("{:?}", output_path);
-                    // let mut tmp_file = tokio::fs::File::create(&output_path).await.unwrap();
-                    // tokio::io::copy(&mut &bin[..], &mut tmp_file).await.unwrap();
-                    // tmp_file.sync_all().await.unwrap();
-                    // std::process::exit(0);
                     eprintln!("binary received");
                 }
                 Message::Ping(_) => {

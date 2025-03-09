@@ -10,8 +10,7 @@ defmodule NixRelayServer.ClientWebSocketHandler do
     {:ok, state}
   end
 
-  def handle_info({:complete, derivation, success}, state) do
-    # {:ok, nar} = NixRelayServer.Cache.get_nar(derivation)
+  def handle_info({:complete, _derivation, success}, state) do
     {:push, {:text, success}, state}
   end
 

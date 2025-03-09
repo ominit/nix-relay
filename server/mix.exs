@@ -8,7 +8,14 @@ defmodule NixRelayServer.MixProject do
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      aliases: [test: "test --no-start"]
+      aliases: [test: "test --no-start"],
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test
+      ]
     ]
   end
 
@@ -25,7 +32,8 @@ defmodule NixRelayServer.MixProject do
     [
       {:bandit, "~> 1.0"},
       {:websock_adapter, "~> 0.5"},
-      {:toml, "~> 0.7.0"}
+      {:toml, "~> 0.7.0"},
+      {:excoveralls, "~> 0.18", only: :test}
     ]
   end
 end

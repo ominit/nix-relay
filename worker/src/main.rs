@@ -73,7 +73,7 @@ async fn main() {
                                         )))
                                         .await
                                         .unwrap();
-                                    println!("Sent Binary");
+                                    println!("complete true {}", derivation);
                                     break;
                                 }
                                 Err(e) => {
@@ -85,6 +85,8 @@ async fn main() {
                                         )))
                                         .await
                                         .unwrap();
+                                    println!("complete false {}", derivation);
+                                    break;
                                 }
                             }
                         }
@@ -102,7 +104,7 @@ async fn main() {
     }
 }
 
-async fn build_derivation(derivation: &str, data: &str) -> Result<(), String> {
+async fn build_derivation(derivation: &str, _data: &str) -> Result<(), String> {
     let mut command = Command::new("nix-store");
     let build_output = command
         .arg("--realize")

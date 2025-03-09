@@ -86,20 +86,4 @@ defmodule NixRelayServer.Cache do
 
   defp nar_path(derivation), do: Path.join(nar_dir(), "#{derivation}.nar.xz")
   defp narinfo_path(derivation), do: Path.join(info_dir(), "#{derivation}.narinfo")
-
-  defp generate_narinfo(derivation, artifact_binary) do
-    narhash = :crypto.hash(:sha256, artifact_binary) |> Base.encode16(case: :lower)
-
-    """
-    StorePath: /nix/store/#{derivation}.tar.xz.drv
-    URL: #{derivation}.nar.xz
-    Compression: xz
-    NarHash: sha256:#{narhash}
-    Signature: #{sign_narinfo(derivation, narhash)}
-    """
-  end
-
-  defp sign_narinfo(derivation, narhash) do
-    "dummy"
-  end
 end
