@@ -31,37 +31,50 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nix-
 
-      - name: Cache Mix dependencies
+      - name: Cache server dependencies
         uses: actions/cache@v3
         with:
           path: |
-            nix-relay/server/deps
-            nix-relay/server/_build
-          key: ${{ runner.os }}-mix-${{ hashFiles('nix-relay/server/mix.lock') }}
+            server/deps
+            server/_build
+          key: ${{ runner.os }}-server-${{ hashFiles('server/mix.lock') }}
           restore-keys: |
-            ${{ runner.os }}-mix-
+            ${{ runner.os }}-server-
+
+      - name: Cache client dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            client/target
+          key: ${{ runner.os }}-client-${{ hashFiles('client/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-client-
+
+      - name: Cache worker dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            worker/target
+          key: ${{ runner.os }}-worker-${{ hashFiles('worker/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-worker-
 
       - name: Install Elixir dependencies
         run: |
-          cd nix-relay
           nix develop --command bash -c "cd server && mix deps.get"
 
       - name: Check formatting
         run: |
-          cd nix-relay
           nix develop --command bash -c "cd server && mix format --check-formatted"
 
       - name: Run tests
         run: |
-          cd nix-relay
           nix develop --command bash -c "cd server && mix test"
 
       - name: Build worker
         run: |
-          cd nix-relay
           nix develop --command bash -c "cd worker && cargo build --release"
 
       - name: Build client
         run: |
-          cd nix-relay
           nix develop --command bash -c "cd client && cargo build --release"
