@@ -14,7 +14,7 @@ defmodule NixRelayServer.ConfigTest do
       NixRelayServer.Config.remove_test_config()
 
       # This assumes the default value is "./../temp-store-server"
-      assert NixRelayServer.Config.get("cache_dir") == "./../temp-store-server/forfail"
+      assert NixRelayServer.Config.get("cache_dir") == "./../temp-store-server"
     end
   end
 
