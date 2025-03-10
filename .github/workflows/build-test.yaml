@@ -26,6 +26,7 @@ jobs:
 
       - name: Test Server
         run: |
+          cd server
           nix develop -c mix test
 
       - name: Build Worker
