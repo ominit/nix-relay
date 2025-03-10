@@ -21,7 +21,7 @@ jobs:
       - name: Test Server
         run: |
           cd server
-          nix develop -c "mix deps.get && mix test"
+          nix develop --command bash -c "mix deps.get && mix test"
 
       - name: Build Worker
         run: |
