@@ -1,12 +1,11 @@
-name: Build & Test
+name: Build and Test
 
 on:
   push:
   pull_request:
 
 jobs:
-  build:
-    name: Build & Test
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,50 +20,26 @@ jobs:
       - name: Setup Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
 
-      - name: Cache server dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            server/deps
-            server/_build
-          key: ${{ runner.os }}-server-${{ hashFiles('server/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-server-
-
-      - name: Cache client dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            client/target
-          key: ${{ runner.os }}-client-${{ hashFiles('client/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-client-
-
-      - name: Cache worker dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            worker/target
-          key: ${{ runner.os }}-worker-${{ hashFiles('worker/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-worker-
-
-      - name: Install Elixir dependencies
+      - name: Build Server
         run: |
-          nix develop --command bash -c "cd server && mix deps.get"
+          nix build .#server -L
 
-      - name: Check formatting
+      - name: Run Server Tests
         run: |
-          nix develop --command bash -c "cd server && mix format --check-formatted"
+          nix build .#checks.server-test -L
 
-      - name: Run tests
+      - name: Build Worker
         run: |
-          nix develop --command bash -c "cd server && mix test"
+          nix build .#worker -L
 
-      - name: Build worker
+      - name: Run Worker Tests
         run: |
-          nix develop --command bash -c "cd worker && cargo build --release"
+          nix build .#checks.worker-test -L
 
-      - name: Build client
+      - name: Build Client
         run: |
-          nix develop --command bash -c "cd client && cargo build --release"
+          nix build .#client -L
+
+      - name: Run Client Tests
+        run: |
+          nix build .#checks.client-test -L
