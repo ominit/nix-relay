@@ -24,22 +24,14 @@ jobs:
         run: |
           nix build .#server -L
 
-      - name: Run Server Tests
+      - name: Test Server
         run: |
-          nix build .#checks.server-test -L
+          nix develop -c mix test
 
       - name: Build Worker
         run: |
           nix build .#worker -L
 
-      - name: Run Worker Tests
-        run: |
-          nix build .#checks.worker-test -L
-
       - name: Build Client
         run: |
           nix build .#client -L
-
-      - name: Run Client Tests
-        run: |
-          nix build .#checks.client-test -L

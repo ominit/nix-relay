@@ -46,6 +46,7 @@
         src = workerSrc;
         buildInputs = commonRustDeps;
         PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+        doCheck = true;
       };
 
       workerDeps = craneLib.buildDepsOnly workerArgs;
@@ -60,6 +61,7 @@
         src = clientSrc;
         buildInputs = commonRustDeps;
         PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+        doCheck = true;
       };
 
       clientDeps = craneLib.buildDepsOnly clientArgs;
@@ -81,15 +83,17 @@
         then generateDepsNix (serverSrc + "/mix.lock")
         else pkgs.writeText "empty-deps.nix" "{ pkgs }: []";
 
+      serverDeps = with pkgs;
+        import autoDepsNix {
+          inherit lib beamPackages;
+        };
+
       mixRelease = pkgs.beam.packages.erlang_28.mixRelease {
         pname = "nix-relay-server";
         version = "0.1.0";
         src = serverSrc;
 
-        mixNixDeps = with pkgs;
-          import autoDepsNix {
-            inherit lib beamPackages;
-          };
+        mixNixDeps = serverDeps;
       };
     in {
       devShells = {
@@ -123,42 +127,6 @@
           });
 
         server = mixRelease;
-      };
-
-      checks = {
-        worker-test = craneLib.cargoTest (workerArgs
-          // {
-            cargoArtifacts = workerDeps;
-          });
-
-        client-test = craneLib.cargoTest (clientArgs
-          // {
-            cargoArtifacts = clientDeps;
-          });
-
-        server-test =
-          pkgs.runCommand "nix-relay-server-test" {
-            buildInputs = elixirDeps;
-          } ''
-            cp -r ${serverSrc} server
-            chmod -R +w server
-            cd server
-            export MIX_ENV=test
-
-            # Fix permissions and setup Hex
-            mkdir -p ~/.hex
-            chmod -R +w ~/.hex
-
-            # Get dependencies and run tests
-            mix local.hex --force
-            mix local.rebar --force
-            mix deps.get
-            mix test
-
-            # If tests pass, create a marker file
-            mkdir -p $out
-            touch $out/passed
-          '';
       };
     });
 }
