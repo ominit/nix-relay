@@ -1,12 +1,15 @@
-use std::{path::Path, time::Duration};
+use std::{process::Stdio, time::Duration};
 
 use futures::{SinkExt, StreamExt};
-use tokio::{process::Command, time::sleep};
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
+    time::sleep,
+};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 const URL: &str = "ws://localhost:4000/worker";
 const UPLOAD_URL: &str = "http://localhost:4000";
-const TEMP_STORE_DIR: &str = "./../temp-store-worker/";
 
 #[tokio::main]
 async fn main() {
@@ -20,8 +23,6 @@ async fn main() {
             }
             sleep(Duration::from_secs(2)).await;
         }
-
-        let _ = std::fs::create_dir(TEMP_STORE_DIR);
 
         println!("registering");
         ws_stream.send(Message::text("register")).await.unwrap();
@@ -53,19 +54,7 @@ async fn main() {
                             match result {
                                 Ok(_) => {
                                     println!("Build successful");
-                                    let output = Command::new("nix")
-                                        .arg("copy")
-                                        .arg("--from")
-                                        .arg(TEMP_STORE_DIR)
-                                        .arg("--to")
-                                        .arg(UPLOAD_URL)
-                                        .arg(&derivation)
-                                        .arg("-v")
-                                        .output()
-                                        .await
-                                        .map_err(|e| e.to_string())
-                                        .unwrap();
-                                    println!("{:?}", output);
+                                    send_derivation(&derivation).await;
                                     ws_stream
                                         .send(Message::text(format!(
                                             "complete true {}",
@@ -74,7 +63,6 @@ async fn main() {
                                         .await
                                         .unwrap();
                                     println!("complete true {}", derivation);
-                                    break;
                                 }
                                 Err(e) => {
                                     eprintln!("Build failed: {}", e);
@@ -86,7 +74,6 @@ async fn main() {
                                         .await
                                         .unwrap();
                                     println!("complete false {}", derivation);
-                                    break;
                                 }
                             }
                         }
@@ -104,17 +91,19 @@ async fn main() {
     }
 }
 
-async fn build_derivation(derivation: &str, _data: &str) -> Result<(), String> {
-    let mut command = Command::new("nix-store");
-    let build_output = command
-        .arg("--realize")
-        .arg(derivation)
-        .arg("--store")
-        .arg(Path::new(TEMP_STORE_DIR).canonicalize().unwrap())
-        .arg("-v")
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
+async fn build_derivation(derivation: &str, data: &str) -> Result<(), String> {
+    // tokio::fs::write(&derivation, data)
+    //     .await
+    //     .map_err(|e| e.to_string())?;
+    println!("Building derivation: {}", derivation);
+    let build_output = print_command(
+        Command::new("nix-store")
+            .arg("--realize")
+            .arg(derivation)
+            .arg("-v")
+            .stdout(Stdio::piped()),
+    )
+    .await;
     println!("{:?}", build_output.status);
 
     if build_output.status.success() {
@@ -122,4 +111,35 @@ async fn build_derivation(derivation: &str, _data: &str) -> Result<(), String> {
     } else {
         Err(String::from_utf8_lossy(&build_output.stderr).into_owned())
     }
+}
+
+async fn print_command(command: &mut Command) -> std::process::Output {
+    let mut child = command.spawn().unwrap();
+    let stdout = child.stdout.take().unwrap();
+
+    let reader = BufReader::new(stdout);
+    let mut lines = reader.lines();
+
+    while let Some(line) = lines.next_line().await.unwrap() {
+        println!("{}", line);
+    }
+
+    child.wait_with_output().await.unwrap()
+}
+
+async fn send_derivation(derivation: &str) {
+    let output = Command::new("nix")
+        .arg("copy")
+        .arg("--to")
+        .arg(UPLOAD_URL)
+        .arg(derivation)
+        .arg("--refresh")
+        .arg("--repair")
+        .arg("--derivation")
+        .arg("-v")
+        .output()
+        .await
+        .map_err(|e| e.to_string())
+        .unwrap();
+    println!("{:?}", output);
 }

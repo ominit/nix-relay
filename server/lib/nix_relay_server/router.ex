@@ -6,13 +6,13 @@ defmodule NixRelayServer.Router do
 
   get "/worker" do
     conn
-    |> WebSockAdapter.upgrade(NixRelayServer.WorkerWebSocketHandler, [], [])
+    |> WebSockAdapter.upgrade(NixRelayServer.WorkerWebSocketHandler, [], timeout: 999_999_999)
     |> halt()
   end
 
   get "/client" do
     conn
-    |> WebSockAdapter.upgrade(NixRelayServer.ClientWebSocketHandler, [], [])
+    |> WebSockAdapter.upgrade(NixRelayServer.ClientWebSocketHandler, [], timeout: 999_999_999)
     |> halt()
   end
 
@@ -50,33 +50,46 @@ defmodule NixRelayServer.Router do
 
   get "/:hash.narinfo" do
     hash = conn.params["hash"]
-    IO.puts("narinfo #{hash}")
+    IO.puts("get narinfo #{hash}")
 
-    case NixRelayServer.Cache.check_if_narinfo_in_store(hash) do
-      {:ok} ->
-        send_resp(conn, 200, "Found")
+    case NixRelayServer.Cache.get_narinfo(hash) do
+      {:ok, content} ->
+        send_resp(conn, 200, content)
 
-      {:error} ->
+      {:error, :not_found} ->
         send_resp(conn, 404, "Not found")
     end
   end
 
   head "/:hash.narinfo" do
     hash = conn.params["hash"]
-    IO.puts("narinfo #{hash}")
+    IO.puts("head #{hash}.narinfo")
 
-    case NixRelayServer.Cache.check_if_narinfo_in_store(hash) do
-      {:ok} ->
-        send_resp(conn, 200, "Found")
+    case NixRelayServer.Cache.get_narinfo(hash) do
+      {:ok, content} ->
+        send_resp(conn, 200, content)
 
-      {:error} ->
+      {:error, :not_found} ->
         send_resp(conn, 404, "Not found")
     end
   end
 
   get "/nar/:hash.nar.xz" do
     hash = conn.params["hash"]
-    IO.puts("nar.xz #{hash}")
+    IO.puts("get nar.xz #{hash}")
+
+    case NixRelayServer.Cache.get_nar(hash) do
+      {:ok, content} ->
+        send_resp(conn, 200, content)
+
+      {:error, :not_found} ->
+        send_resp(conn, 404, "Not found")
+    end
+  end
+
+  head "/nar/:hash.nar.xz" do
+    hash = conn.params["hash"]
+    IO.puts("head nar.xz #{hash}")
 
     case NixRelayServer.Cache.get_nar(hash) do
       {:ok, content} ->
@@ -88,7 +101,7 @@ defmodule NixRelayServer.Router do
   end
 
   get "/nix-cache-info" do
-    IO.puts("cache info")
+    IO.puts("get cache info")
     send_resp(conn, 200, "Storedir: /nix/store")
   end
 

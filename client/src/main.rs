@@ -46,36 +46,33 @@ async fn main() {
                 Message::Text(text) => {
                     eprintln!("received message: {:?}", text);
                     if text == "true" {
-                        Command::new("nix")
+                        let result = Command::new("nix")
                             .arg("copy")
                             .arg("--from")
                             .arg(DOWNLOAD_URL)
-                            .arg(drv_path.replace(".tar.gz", ""))
+                            .arg(drv_path)
+                            .arg("--refresh")
                             .arg("-v")
                             .output()
                             .await
                             .map_err(|e| e.to_string())
                             .unwrap();
+                        if result.status.success() {
+                            eprintln!("Successfully copied build result from server");
+                            // Exit with success - Nix will recognize the build as done
+                            std::process::exit(0);
+                        } else {
+                            eprintln!(
+                                "Failed to copy build result: {}",
+                                String::from_utf8_lossy(&result.stderr)
+                            );
+                            // Exit with failure - Nix will attempt to build locally
+                            std::process::exit(1);
+                        }
                     }
                     ws_stream.close(None).await.unwrap();
-                    std::process::exit(0);
                 }
-                Message::Binary(_) => {
-                    eprintln!("binary received");
-                }
-                Message::Ping(_) => {
-                    eprintln!("ping received");
-                }
-                Message::Pong(_) => {
-                    eprintln!("pong received");
-                }
-                Message::Close(_) => {
-                    eprintln!("close received");
-                    std::process::exit(-1);
-                }
-                Message::Frame(_) => {
-                    eprintln!("frame received");
-                }
+                _ => {}
             }
         }
     }

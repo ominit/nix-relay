@@ -48,7 +48,7 @@ defmodule NixRelayServer.RouterTest do
       conn = NixRelayServer.Router.call(conn, [])
 
       assert conn.status == 200
-      assert conn.resp_body == "Found"
+      assert conn.resp_body == content
     end
   end
 
