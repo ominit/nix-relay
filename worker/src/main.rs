@@ -1,8 +1,8 @@
-use std::{process::Stdio, time::Duration};
+use std::{process::Stdio, str::FromStr, time::Duration};
 
 use futures::{SinkExt, StreamExt};
 use tokio::{
-    io::{AsyncBufReadExt, BufReader},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,
     time::sleep,
 };
@@ -92,9 +92,28 @@ async fn main() {
 }
 
 async fn build_derivation(derivation: &str, data: &str) -> Result<(), String> {
-    // tokio::fs::write(&derivation, data)
-    //     .await
-    //     .map_err(|e| e.to_string())?;
+    let json = serde_json::Value::from_str(data).unwrap();
+    let mut objects = json.as_object().unwrap().values().collect::<Vec<_>>();
+    while !objects.is_empty() {
+        let object = objects.remove(0);
+        let mut child = Command::new("nix")
+            .arg("derivation")
+            .arg("add")
+            .stdin(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(object.to_string().as_bytes())
+            .await
+            .unwrap();
+        let output = child.wait_with_output().await.unwrap();
+        if !output.status.success() {
+            objects.push(object);
+        }
+    }
     println!("Building derivation: {}", derivation);
     let build_output = print_command(
         Command::new("nix-store")
