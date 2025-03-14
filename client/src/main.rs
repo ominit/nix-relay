@@ -17,13 +17,15 @@ async fn main() {
     // eprintln!("arguments: {:?}", args);
 
     let drv_path = &args[1];
-    let derivation_file = Command::new("cat")
+    let derivation_file = Command::new("nix")
+        .arg("derivation")
+        .arg("show")
         .arg(drv_path)
+        .arg("-r")
         .output()
         .await
         .unwrap()
         .stdout;
-    // eprintln!("{:?}", String::from_utf8_lossy(&derivation_file));
 
     let (mut ws_stream, _) = connect_async(URL.to_string())
         .await
