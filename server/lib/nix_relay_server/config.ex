@@ -5,10 +5,13 @@ defmodule NixRelayServer.Config do
   def remove_test_config, do: Process.delete(:test_config)
 
   defp load do
-    if Process.get(:test_config) || Mix.env() == :test do
+    if Mix.env() == :test do
       Process.get(:test_config) || %{}
     else
-      config_path() |> File.read!() |> Toml.decode!() |> Map.new()
+      case config_path() |> File.read() do
+        {:ok, content} -> Toml.decode!(content) |> Map.new()
+        {:error, :enoent} -> %{}
+      end
     end
   end
 
@@ -17,6 +20,6 @@ defmodule NixRelayServer.Config do
   end
 
   defp config_path do
-    Path.join([System.user_home!(), ".config", "nix-relay", "config.toml"])
+    Path.join([System.user_home!(), ".config", "nix-relay", "server.toml"])
   end
 end

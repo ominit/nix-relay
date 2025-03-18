@@ -14,7 +14,7 @@ defmodule NixRelayServer.ApplicationTest do
 
     # Verify that Bandit is running and listening on port 4000
     # This is a simple way to check if the HTTP server is running
-    {:ok, socket} = :gen_tcp.connect('localhost', 4000, [:binary, active: false])
+    {:ok, socket} = :gen_tcp.connect(~c"localhost", 4000, [:binary, active: false])
     :gen_tcp.close(socket)
 
     Application.stop(:nix_relay_server)

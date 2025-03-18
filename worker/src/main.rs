@@ -1,6 +1,7 @@
-use std::{process::Stdio, str::FromStr, time::Duration};
+use std::{path::Path, process::Stdio, str::FromStr, time::Duration};
 
 use futures::{SinkExt, StreamExt};
+use serde::Deserialize;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,
@@ -8,15 +9,36 @@ use tokio::{
 };
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-const URL: &str = "ws://localhost:4000/worker";
-const UPLOAD_URL: &str = "http://localhost:4000";
+#[derive(Deserialize)]
+struct Config {
+    server_url: String,
+}
+
+impl Config {
+    pub fn websocket_url(&self) -> String {
+        format!("ws://{}/worker", self.server_url)
+    }
+
+    pub fn upload_url(&self) -> String {
+        format!("http://{}", self.server_url)
+    }
+}
 
 #[tokio::main]
 async fn main() {
+    #[allow(deprecated)] // windows not supported
+    let home_dir = std::env::home_dir().unwrap();
+    let config: Config = toml::from_str(
+        &tokio::fs::read_to_string(Path::new(&home_dir).join(".config/nix-relay/worker.toml"))
+            .await
+            .expect("Unable to read ~/.config/nix-relay/worker.toml"),
+    )
+    .unwrap();
+
     loop {
         let mut ws_stream;
         loop {
-            let test = connect_async(URL.to_string()).await;
+            let test = connect_async(config.websocket_url()).await;
             if test.is_ok() {
                 ws_stream = test.unwrap().0;
                 break;
@@ -54,7 +76,7 @@ async fn main() {
                             match result {
                                 Ok(_) => {
                                     println!("Build successful");
-                                    send_derivation(&derivation).await;
+                                    send_derivation(&derivation, &config).await;
                                     ws_stream
                                         .send(Message::text(format!(
                                             "complete true {}",
@@ -146,11 +168,11 @@ async fn print_command(command: &mut Command) -> std::process::Output {
     child.wait_with_output().await.unwrap()
 }
 
-async fn send_derivation(derivation: &str) {
+async fn send_derivation(derivation: &str, config: &Config) {
     let output = Command::new("nix")
         .arg("copy")
         .arg("--to")
-        .arg(UPLOAD_URL)
+        .arg(config.upload_url())
         .arg(derivation)
         .arg("--refresh")
         .arg("--repair")
