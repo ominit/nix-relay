@@ -1,10 +1,34 @@
 use futures::{SinkExt, StreamExt};
-use std::env;
+use serde::Deserialize;
+use std::{env, path::Path};
 use tokio::process::Command;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-const URL: &str = "ws://localhost:4000/client";
-const DOWNLOAD_URL: &str = "http://localhost:4000";
+#[derive(Deserialize)]
+struct Config {
+    server_url: String,
+}
+
+impl Config {
+    pub fn websocket_url(&self) -> String {
+        format!("ws://{}/client", self.server_url)
+    }
+
+    pub fn cache_url(&self) -> String {
+        format!("http://{}", self.server_url)
+    }
+
+    pub async fn read_from_file() -> Self {
+        #[allow(deprecated)] // windows not supported
+        let home_dir = std::env::home_dir().unwrap();
+        toml::from_str(
+            &tokio::fs::read_to_string(Path::new(&home_dir).join(".config/nix-relay/client.toml"))
+                .await
+                .expect("Unable to read ~/.config/nix-relay/client.toml"),
+        )
+        .expect("unable to parse config")
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -15,6 +39,8 @@ async fn main() {
         return;
     }
     // eprintln!("arguments: {:?}", args);
+
+    let config = Config::read_from_file().await;
 
     let drv_path = &args[1];
     let derivation_file = Command::new("nix")
@@ -27,7 +53,7 @@ async fn main() {
         .unwrap()
         .stdout;
 
-    let (mut ws_stream, _) = connect_async(URL.to_string())
+    let (mut ws_stream, _) = connect_async(config.websocket_url())
         .await
         .expect("failed to connect");
     eprintln!("Connected to server");
@@ -51,7 +77,7 @@ async fn main() {
                         let result = Command::new("nix")
                             .arg("copy")
                             .arg("--from")
-                            .arg(DOWNLOAD_URL)
+                            .arg(config.cache_url())
                             .arg(drv_path)
                             .arg("--refresh")
                             .arg("-v")

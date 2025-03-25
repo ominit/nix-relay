@@ -19,21 +19,25 @@ impl Config {
         format!("ws://{}/worker", self.server_url)
     }
 
-    pub fn upload_url(&self) -> String {
+    pub fn cache_url(&self) -> String {
         format!("http://{}", self.server_url)
+    }
+
+    pub async fn read_from_file() -> Self {
+        #[allow(deprecated)] // windows not supported
+        let home_dir = std::env::home_dir().unwrap();
+        toml::from_str(
+            &tokio::fs::read_to_string(Path::new(&home_dir).join(".config/nix-relay/worker.toml"))
+                .await
+                .expect("Unable to read ~/.config/nix-relay/worker.toml"),
+        )
+        .expect("unable to parse config")
     }
 }
 
 #[tokio::main]
 async fn main() {
-    #[allow(deprecated)] // windows not supported
-    let home_dir = std::env::home_dir().unwrap();
-    let config: Config = toml::from_str(
-        &tokio::fs::read_to_string(Path::new(&home_dir).join(".config/nix-relay/worker.toml"))
-            .await
-            .expect("Unable to read ~/.config/nix-relay/worker.toml"),
-    )
-    .unwrap();
+    let config = Config::read_from_file().await;
 
     loop {
         let mut ws_stream;
@@ -172,7 +176,7 @@ async fn send_derivation(derivation: &str, config: &Config) {
     let output = Command::new("nix")
         .arg("copy")
         .arg("--to")
-        .arg(config.upload_url())
+        .arg(config.cache_url())
         .arg(derivation)
         .arg("--refresh")
         .arg("--repair")
