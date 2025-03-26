@@ -18,15 +18,29 @@ impl Config {
         format!("http://{}", self.server_url)
     }
 
-    pub async fn read_from_file() -> Self {
-        #[allow(deprecated)] // windows not supported
-        let home_dir = std::env::home_dir().unwrap();
-        toml::from_str(
-            &tokio::fs::read_to_string(Path::new(&home_dir).join(".config/nix-relay/client.toml"))
-                .await
-                .expect("Unable to read ~/.config/nix-relay/client.toml"),
-        )
-        .expect("unable to parse config")
+    // pub async fn read_from_file() -> Self {
+    //     #[allow(deprecated)] // windows not supported
+    //     let home_dir = std::env::home_dir().unwrap();
+    //     toml::from_str(
+    //         &tokio::fs::read_to_string(Path::new(&home_dir).join(".config/nix-relay/client.toml"))
+    //             .await
+    //             .expect("Unable to read ~/.config/nix-relay/client.toml"),
+    //     )
+    //     .expect("unable to parse config")
+    // }
+
+    // pub fn read_from_env() -> Self {
+    //     toml::from_str(
+    //         &std::env::var("NIX_RELAY_CLIENT")
+    //             .expect("environment variable not found: `NIX_RELAY_CLIENT`"),
+    //     )
+    //     .expect("unable to parse config")
+    // }
+
+    pub fn temp() -> Self {
+        Config {
+            server_url: "localhost:4000".to_string(),
+        }
     }
 }
 
@@ -40,7 +54,7 @@ async fn main() {
     }
     // eprintln!("arguments: {:?}", args);
 
-    let config = Config::read_from_file().await;
+    let config = Config::temp();
 
     let drv_path = &args[1];
     let derivation_file = Command::new("nix")
