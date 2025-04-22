@@ -24,7 +24,7 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'nix-relay/server/mix.lock', 'nix-relay/worker/Cargo.lock', 'nix-relay/client/Cargo.lock') }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 1G
 
@@ -45,8 +45,8 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: server-${{ runner.os }}-${{ hashFiles('flake.lock', 'nix-relay/server/mix.lock') }}
-          restore-prefixes-first-match: server-${{ runner.os }}-
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'nix-relay/server/mix.lock', 'nix-relay/worker/Cargo.lock', 'nix-relay/client/Cargo.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 1G
 
       - name: Build Server
@@ -66,8 +66,8 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: server-${{ runner.os }}-${{ hashFiles('flake.lock', 'nix-relay/server/mix.lock') }}
-          restore-prefixes-first-match: server-${{ runner.os }}-
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'nix-relay/server/mix.lock', 'nix-relay/worker/Cargo.lock', 'nix-relay/client/Cargo.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 1G
 
       - name: Test Server
@@ -89,8 +89,8 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: worker-${{ runner.os }}-${{ hashFiles('flake.lock', 'nix-relay/worker/Cargo.lock') }}
-          restore-prefixes-first-match: worker-${{ runner.os }}-
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'nix-relay/server/mix.lock', 'nix-relay/worker/Cargo.lock', 'nix-relay/client/Cargo.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 1G
 
       - name: Build Worker
@@ -110,8 +110,8 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: client-${{ runner.os }}-${{ hashFiles('flake.lock', 'nix-relay/client/Cargo.lock') }}
-          restore-prefixes-first-match: client-${{ runner.os }}-
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'nix-relay/server/mix.lock', 'nix-relay/worker/Cargo.lock', 'nix-relay/client/Cargo.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 1G
 
       - name: Build Client
