@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /nix/store
-          key: ${{ runner.os }}-nix-${{ hashFiles('flake.lock' }}
+          key: ${{ runner.os }}-nix-${{ hashFiles('flake.lock') }}
           restore-keys: ${{ runner.os }}-nix-
 
       - name: Build Nix Flake
