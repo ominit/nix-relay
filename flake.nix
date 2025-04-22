@@ -30,6 +30,7 @@
         rust-bin.stable.latest.default
         pkg-config
         openssl
+        cargo-edit
       ];
 
       elixirDeps = with pkgs; [
@@ -121,7 +122,7 @@
             cargoArtifacts = workerDeps;
           });
 
-        client = craneLib.buildPackage (clientArgs
+        nixr = craneLib.buildPackage (clientArgs
           // {
             cargoArtifacts = clientDeps;
           });

@@ -1,3 +1,6 @@
+mod config;
+
+use clap::Parser;
 use futures::{SinkExt, StreamExt};
 use serde::Deserialize;
 use std::{env, path::Path};
