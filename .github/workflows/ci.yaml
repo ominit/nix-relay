@@ -31,7 +31,7 @@ jobs:
           restore-keys: ${{ runner.os }}-nix-
 
       - name: Build Nix Flake
-        run: nix develop --command "exit"
+        run: nix develop
 
   # build-and-test:
   #   name: Build and Test
