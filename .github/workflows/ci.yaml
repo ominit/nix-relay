@@ -24,7 +24,7 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('nix-relay/flake.lock') }}-${{ github.sha }}
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
 
       - name: Build Nix Flake
@@ -44,7 +44,7 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: server-${{ runner.os }}-${{ hashFiles('nix-relay/flake.lock', 'nix-relay/server/mix.lock') }}-${{ github.sha }}
+          primary-key: server-${{ runner.os }}-${{ hashFiles('flake.lock', 'server/mix.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: server-${{ runner.os }}-
 
       - name: Build Server
@@ -64,7 +64,7 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: server-${{ runner.os }}-${{ hashFiles('nix-relay/flake.lock', 'nix-relay/server/mix.lock') }}-${{ github.sha }}
+          primary-key: server-${{ runner.os }}-${{ hashFiles('flake.lock', 'server/mix.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: server-${{ runner.os }}-
 
       - name: Test Server
@@ -86,7 +86,7 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: worker-${{ runner.os }}-${{ hashFiles('nix-relay/flake.lock', 'nix-relay/worker/Cargo.lock') }}-${{ github.sha }}
+          primary-key: worker-${{ runner.os }}-${{ hashFiles('flake.lock', 'worker/Cargo.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: worker-${{ runner.os }}-
 
       - name: Build Worker
@@ -106,7 +106,7 @@ jobs:
       - name: Restore and Save Nix Cache
         uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: client-${{ runner.os }}-${{ hashFiles('nix-relay/flake.lock', 'nix-relay/client/Cargo.lock') }}-${{ github.sha }}
+          primary-key: client-${{ runner.os }}-${{ hashFiles('flake.lock', 'client/Cargo.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: client-${{ runner.os }}-
 
       - name: Build Client
