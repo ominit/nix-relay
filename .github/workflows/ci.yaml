@@ -26,6 +26,7 @@ jobs:
         with:
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
+          purge: true
 
       - name: Build Nix Flake
         run: nix develop
@@ -46,6 +47,7 @@ jobs:
         with:
           primary-key: server-${{ runner.os }}-${{ hashFiles('flake.lock', 'server/mix.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: server-${{ runner.os }}-
+          purge: true
 
       - name: Build Server
         run: nix build .#server -L
@@ -66,6 +68,7 @@ jobs:
         with:
           primary-key: server-${{ runner.os }}-${{ hashFiles('flake.lock', 'server/mix.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: server-${{ runner.os }}-
+          purge: true
 
       - name: Test Server
         run: |
@@ -88,6 +91,7 @@ jobs:
         with:
           primary-key: worker-${{ runner.os }}-${{ hashFiles('flake.lock', 'worker/Cargo.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: worker-${{ runner.os }}-
+          purge: true
 
       - name: Build Worker
         run: nix build .#worker -L
@@ -108,6 +112,7 @@ jobs:
         with:
           primary-key: client-${{ runner.os }}-${{ hashFiles('flake.lock', 'client/Cargo.lock') }}-${{ github.sha }}
           restore-prefixes-first-match: client-${{ runner.os }}-
+          purge: true
 
       - name: Build Client
         run: nix build .#nixr -L
