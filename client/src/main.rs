@@ -2,6 +2,7 @@ mod cli;
 mod client;
 mod config;
 mod macros;
+mod model;
 
 use anyhow::Result;
 use clap::Parser;
