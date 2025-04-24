@@ -1,7 +1,9 @@
+use derivative::Derivative;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Derivative, Clone)]
+#[derivative(Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Derivation {
     pub args: Vec<String>,
@@ -12,6 +14,9 @@ pub struct Derivation {
     pub name: String,
     pub outputs: HashMap<String, OutputDetails>,
     pub system: System,
+    #[serde(default)]
+    #[derivative(Debug = "ignore")]
+    pub derivation_binary: Vec<u8>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
