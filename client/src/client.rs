@@ -39,6 +39,7 @@ impl Client {
 
     fn handle_run(mut self, args: RunArgs) -> Result<()> {
         let rt = Runtime::new()?;
+
         let (root_derivation, root_derivation_data) =
             rt.block_on(Self::get_derivation_from_flake(&args.flake_ref))?;
         debug_println!(
@@ -48,13 +49,31 @@ impl Client {
         );
         self.derivations
             .insert(root_derivation.clone(), root_derivation_data);
+        rt.block_on(self.connect_to_server())?;
         rt.block_on(self.build(&root_derivation))?;
+        Ok(())
+    }
+
+    async fn connect_to_server(&mut self) -> Result<()> {
         Ok(())
     }
 
     async fn build(self, derivation: &String) -> Result<()> {
         debug_println!("Checking derivation: {:?}", derivation);
+        let derivation_data = self.derivations.get(derivation).unwrap();
         // check if derivation exists locally, exit out if it does
+        let derivation_exists_locally = {
+            let output = Command::new("nix-store")
+                .arg("--verify-path")
+                .arg(derivation_data.outputs.get("out").unwrap().path.clone())
+                .output()
+                .await?;
+            output.status.success()
+        };
+        debug_println!("Derivation exists locally: {:?}", derivation_exists_locally);
+        if derivation_exists_locally {
+            return Ok(());
+        }
         // check if server has the derivation, exit out if it does
         // check the dependencies of the derivation (run build again), sending any dependencies that exist locally but not on the server
         // send server the derivation file, or the actual binary (nix copy)
