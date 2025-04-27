@@ -28,7 +28,7 @@ impl Client {
             config,
             cli,
             derivations: HashMap::new(),
-            server_ws: Websocket {},
+            server_ws: Websocket::new(),
         }
     }
 
@@ -97,8 +97,8 @@ impl Client {
             .insert(root_derivation.clone(), root_derivation_data);
         rt.block_on(self.connect_to_server())?; // TODO make this parallel with getting the derivation
         rt.block_on(self.build(&root_derivation))?;
+        rt.block_on(self.server_ws.disconnect())?;
 
-        // TODO exit server connection
         debug_println!(
             "Running `nix develop {} {:?}`",
             args.flake_ref,
@@ -115,15 +115,7 @@ impl Client {
 
     async fn connect_to_server(&mut self) -> Result<()> {
         let config = &self.config;
-        // let mut ws_stream;
-        // loop {
-        //     let test = connect_async(config.websocket_url()).await;
-        //     if test.is_ok() {
-        //         ws_stream = test.unwrap().0;
-        //         break;
-        //     }
-        //     sleep(Duration::from_secs(2)).await;
-        // }
+        self.server_ws.connect(&config.websocket_url()).await?;
         Ok(())
     }
 
