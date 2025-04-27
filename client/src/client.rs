@@ -1,13 +1,15 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::{Result, bail};
-use tokio::{process::Command, runtime::Runtime};
+use tokio::{net::TcpStream, process::Command, runtime::Runtime, time::sleep};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
 use crate::{
-    cli::{Cli, RunArgs},
+    cli::{Cli, DevelopArgs, RebuildArgs, RunArgs},
     config::Config,
     debug_println,
     model::Derivation,
+    websocket::Websocket,
 };
 
 #[derive(Debug)]
@@ -15,6 +17,7 @@ pub struct Client {
     config: Config,
     cli: Cli,
     derivations: HashMap<String, Derivation>,
+    server_ws: Websocket,
 }
 
 impl Client {
@@ -25,19 +28,62 @@ impl Client {
             config,
             cli,
             derivations: HashMap::new(),
+            server_ws: Websocket {},
         }
     }
 
     pub fn run(self) -> Result<()> {
         match self.cli.command {
+            crate::cli::Commands::Develop(ref args) => {
+                let args = args.clone();
+                self.handle_develop(args)
+            }
             crate::cli::Commands::Run(ref args) => {
                 let args = args.clone();
                 self.handle_run(args)
             }
+            crate::cli::Commands::Rebuild(ref args) => {
+                let args = args.clone();
+                self.handle_rebuild(args)
+            }
         }
     }
 
+    fn handle_rebuild(mut self, args: RebuildArgs) -> Result<()> {
+        let rebuild_type_arg: String = args.rebuild_type.into();
+
+        debug_println!(
+            "Running `nixos-rebuild {} --flake {}`",
+            rebuild_type_arg,
+            args.flake_ref,
+            // self.config.run_args()
+        );
+        std::process::Command::new("nixos-rebuild")
+            .arg(rebuild_type_arg)
+            .arg("--flake")
+            .arg(args.flake_ref)
+            // .args(self.config.rebuild_args()) // Placeholder if config has specific rebuild args
+            .status()?;
+
+        Ok(())
+    }
+
     fn handle_run(mut self, args: RunArgs) -> Result<()> {
+        debug_println!(
+            "Running `nix develop {} {:?}`",
+            args.flake_ref,
+            self.config.run_args()
+        );
+        std::process::Command::new("nix")
+            .arg("run")
+            .arg(args.flake_ref)
+            .args(self.config.run_args())
+            .status()?;
+
+        Ok(())
+    }
+
+    fn handle_develop(mut self, args: DevelopArgs) -> Result<()> {
         let rt = Runtime::new()?;
 
         let (root_derivation, root_derivation_data) =
@@ -49,16 +95,39 @@ impl Client {
         );
         self.derivations
             .insert(root_derivation.clone(), root_derivation_data);
-        rt.block_on(self.connect_to_server())?;
+        rt.block_on(self.connect_to_server())?; // TODO make this parallel with getting the derivation
         rt.block_on(self.build(&root_derivation))?;
+
+        // TODO exit server connection
+        debug_println!(
+            "Running `nix develop {} {:?}`",
+            args.flake_ref,
+            self.config.develop_args()
+        );
+        std::process::Command::new("nix")
+            .arg("develop")
+            .arg(args.flake_ref)
+            .args(self.config.develop_args())
+            .status()?;
+
         Ok(())
     }
 
     async fn connect_to_server(&mut self) -> Result<()> {
+        let config = &self.config;
+        // let mut ws_stream;
+        // loop {
+        //     let test = connect_async(config.websocket_url()).await;
+        //     if test.is_ok() {
+        //         ws_stream = test.unwrap().0;
+        //         break;
+        //     }
+        //     sleep(Duration::from_secs(2)).await;
+        // }
         Ok(())
     }
 
-    async fn build(self, derivation: &String) -> Result<()> {
+    async fn build(&self, derivation: &String) -> Result<()> {
         debug_println!("Checking derivation: {:?}", derivation);
         let derivation_data = self.derivations.get(derivation).unwrap();
         // check if derivation exists locally, exit out if it does
