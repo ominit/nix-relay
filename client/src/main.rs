@@ -3,7 +3,7 @@ mod client;
 mod config;
 mod macros;
 mod model;
-mod websocket;
+mod server;
 
 use anyhow::Result;
 use clap::Parser;

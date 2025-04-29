@@ -2,11 +2,11 @@ use std::path::Path;
 
 use anyhow::{Result, bail};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::debug_println;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Config {
     #[serde(default)]
     server_url: String,

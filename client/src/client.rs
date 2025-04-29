@@ -1,23 +1,23 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Result, bail};
-use tokio::{net::TcpStream, process::Command, runtime::Runtime, time::sleep};
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
+use parking_lot::Mutex;
+use tokio::{process::Command, runtime::Runtime};
 
 use crate::{
     cli::{Cli, DevelopArgs, RebuildArgs, RunArgs},
     config::Config,
     debug_println,
     model::Derivation,
-    websocket::Websocket,
+    server::ServerConnection,
 };
 
 #[derive(Debug)]
 pub struct Client {
     config: Config,
     cli: Cli,
-    derivations: HashMap<String, Derivation>,
-    server_ws: Websocket,
+    derivations: Arc<Mutex<HashMap<String, Derivation>>>,
+    server: Arc<Mutex<ServerConnection>>,
 }
 
 impl Client {
@@ -27,8 +27,8 @@ impl Client {
         Self {
             config,
             cli,
-            derivations: HashMap::new(),
-            server_ws: Websocket::new(),
+            derivations: Arc::new(Mutex::new(HashMap::new())),
+            server: Arc::new(Mutex::new(ServerConnection::new())),
         }
     }
 
@@ -93,20 +93,31 @@ impl Client {
             &root_derivation,
             root_derivation_data
         );
+        if rt.block_on(root_derivation_data.derivation_exists_locally())? {
+            return Ok(());
+        }
         self.derivations
+            .lock()
             .insert(root_derivation.clone(), root_derivation_data);
-        rt.block_on(self.connect_to_server())?; // TODO make this parallel with getting the derivation
-        rt.block_on(self.build(&root_derivation))?;
-        rt.block_on(self.server_ws.disconnect())?;
+        rt.block_on(self.connect_to_server())?;
+        rt.block_on(Self::build(
+            self.derivations,
+            self.config.clone(),
+            root_derivation,
+            self.server.clone(),
+        ))?;
+        rt.block_on(self.server.lock().disconnect())?;
 
         debug_println!(
-            "Running `nix develop {} {:?}`",
+            "Running `nix develop {} -j 0 {:?}`",
             args.flake_ref,
             self.config.develop_args()
         );
         std::process::Command::new("nix")
             .arg("develop")
             .arg(args.flake_ref)
+            .arg("-j")
+            .arg("0")
             .args(self.config.develop_args())
             .status()?;
 
@@ -114,31 +125,103 @@ impl Client {
     }
 
     async fn connect_to_server(&mut self) -> Result<()> {
-        let config = &self.config;
-        self.server_ws.connect(&config.websocket_url()).await?;
+        self.server
+            .lock()
+            .connect(&self.config.websocket_url())
+            .await?;
         Ok(())
     }
 
-    async fn build(&self, derivation: &String) -> Result<()> {
+    async fn build(
+        derivations: Arc<Mutex<HashMap<String, Derivation>>>,
+        config: Config,
+        derivation: String,
+        server: Arc<Mutex<ServerConnection>>,
+    ) -> Result<()> {
         debug_println!("Checking derivation: {:?}", derivation);
-        let derivation_data = self.derivations.get(derivation).unwrap();
+        let derivation_data = derivations.lock().get(&derivation).unwrap().clone();
+
         // check if derivation exists locally, exit out if it does
-        let derivation_exists_locally = {
-            let output = Command::new("nix-store")
-                .arg("--verify-path")
-                .arg(derivation_data.outputs.get("out").unwrap().path.clone())
-                .output()
-                .await?;
-            output.status.success()
-        };
-        debug_println!("Derivation exists locally: {:?}", derivation_exists_locally);
-        if derivation_exists_locally {
+        if derivation_data.derivation_exists_locally().await? {
+            derivations.lock().get_mut(&derivation).unwrap().is_local = true;
+            if ServerConnection::upload_derivation(&config.cache_url(), &derivation)
+                .await?
+                .status
+                .success()
+            {
+                derivations
+                    .lock()
+                    .get_mut(&derivation)
+                    .unwrap()
+                    .is_on_server = true;
+            }
             return Ok(());
         }
+
         // check if server has the derivation, exit out if it does
+        if derivation_data
+            .download_derivation(&config.cache_url(), &derivation)
+            .await?
+        {
+            derivations
+                .lock()
+                .get_mut(&derivation)
+                .unwrap()
+                .is_on_server = true;
+            derivations.lock().get_mut(&derivation).unwrap().is_local = true;
+            return Ok(());
+        }
+
         // check the dependencies of the derivation (run build again), sending any dependencies that exist locally but not on the server
-        // send server the derivation file, or the actual binary (nix copy)
-        // "build" the derivation (check to make sure it actually exists properly)
+        let dependencies = derivation_data.get_dependencies();
+        let mut tasks = vec![];
+        for dependency in dependencies {
+            let (dependency_derivation, dependency_derivation_data) =
+                Self::get_derivation(&dependency).await?;
+            if derivations.lock().contains_key(&dependency_derivation) {
+                continue;
+            }
+            derivations
+                .lock()
+                .insert(dependency_derivation, dependency_derivation_data);
+            {
+                let dependency = dependency.clone();
+                let derivations = derivations.clone();
+                let config = config.clone();
+                let server = server.clone();
+                tasks.push(Box::pin(Self::build(
+                    derivations,
+                    config,
+                    dependency,
+                    server,
+                )));
+            }
+        }
+        for task in tasks {
+            task.await?;
+        }
+
+        // send server the derivation file
+        let mut receiver = server
+            .lock()
+            .send_build_request(
+                derivation.clone(),
+                derivation_data.derivation_binary.clone(),
+            )
+            .await?;
+
+        // wait for server to finish
+        let msg = receiver.recv().await.unwrap();
+        if msg.eq("success") {}
+
+        // get the binary
+        if !ServerConnection::download_derivation(&config.cache_url(), &derivation)
+            .await?
+            .status
+            .success()
+        {
+            debug_println!("derivation failed {}", derivation);
+        }
         Ok(())
     }
 
@@ -186,17 +269,17 @@ impl Client {
             )
         }
 
-        debug_println!(
-            "derivation: {}",
-            String::from_utf8_lossy(&drv_show_output.stdout)
-        );
+        // debug_println!(
+        //     "derivation: {}",
+        //     String::from_utf8_lossy(&drv_show_output.stdout)
+        // );
 
         Self::parse_derivation(drv_show_output.stdout)
     }
 
-    fn parse_derivation(derivation: Vec<u8>) -> Result<(String, Derivation)> {
+    fn parse_derivation(derivation_raw: Vec<u8>) -> Result<(String, Derivation)> {
         let derivation_data_hashmap = serde_json::from_str::<HashMap<String, Derivation>>(
-            &String::from_utf8(derivation.clone())?,
+            &String::from_utf8(derivation_raw.clone())?,
         )?;
         let derivation_name = (*derivation_data_hashmap
             .keys()
@@ -210,7 +293,7 @@ impl Client {
             .unwrap()
             .clone();
 
-        derivation_data.derivation_binary = derivation;
+        derivation_data.derivation_binary = derivation_raw;
 
         Ok((derivation_name, derivation_data))
     }
