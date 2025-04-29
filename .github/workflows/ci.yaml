@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.ref_name == 'main' && github.sha || 'anysha' }}
+  cancel-in-progress: true
+
+jobs:
+  build-nix-env:
+    name: Check Nix Env
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v30
+
+      - name: Restore and Save Nix Cache
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+
+      - name: Build Nix Flake
+        run: nix develop
+
+  build-server:
+    name: Build Server
+    runs-on: ubuntu-latest
+    needs: [build-nix-env]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v30
+
+      - name: Restore and Save Nix Cache
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: server-${{ runner.os }}-${{ hashFiles('flake.lock', 'server/mix.lock') }}-${{ github.sha }}
+          restore-prefixes-first-match: server-${{ runner.os }}-
+
+      - name: Build Server
+        run: nix build .#server -L
+
+  test-server:
+    name: Test Server
+    runs-on: ubuntu-latest
+    needs: [build-server]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v30
+
+      - name: Restore and Save Nix Cache
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: server-${{ runner.os }}-${{ hashFiles('flake.lock', 'server/mix.lock') }}-${{ github.sha }}
+          restore-prefixes-first-match: server-${{ runner.os }}-
+
+      - name: Test Server
+        run: |
+          cd server
+          nix develop .#elixir --command bash -c "mix deps.get && mix test"
+
+  build-worker:
+    name: Build Worker
+    runs-on: ubuntu-latest
+    needs: [build-nix-env]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v30
+
+      - name: Restore and Save Nix Cache
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: worker-${{ runner.os }}-${{ hashFiles('flake.lock', 'worker/Cargo.lock') }}-${{ github.sha }}
+          restore-prefixes-first-match: worker-${{ runner.os }}-
+
+      - name: Build Worker
+        run: nix build .#worker -L
+
+  build-client:
+    name: Build Client
+    runs-on: ubuntu-latest
+    needs: [build-nix-env]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v30
+
+      - name: Restore and Save Nix Cache
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: client-${{ runner.os }}-${{ hashFiles('flake.lock', 'client/Cargo.lock') }}-${{ github.sha }}
+          restore-prefixes-first-match: client-${{ runner.os }}-
+
+      - name: Build Client
+        run: nix build .#nixr -L
