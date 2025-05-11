@@ -1,121 +1,28 @@
-use futures::{SinkExt, StreamExt};
-use serde::Deserialize;
-use std::{env, path::Path};
-use tokio::process::Command;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+mod cli;
+mod client;
+mod config;
+mod macros;
+mod model;
+mod server;
 
-#[derive(Deserialize)]
-struct Config {
-    server_url: String,
-}
+use anyhow::Result;
+use clap::Parser;
+use cli::Cli;
+use client::Client;
+use config::Config;
+use std::env;
 
-impl Config {
-    pub fn websocket_url(&self) -> String {
-        format!("ws://{}/client", self.server_url)
-    }
+fn main() -> Result<()> {
+    human_panic::setup_panic!(
+        human_panic::Metadata::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+            .homepage("github.com/ominit/nix-relay")
+    );
 
-    pub fn cache_url(&self) -> String {
-        format!("http://{}", self.server_url)
-    }
+    let cli = Cli::parse();
 
-    // pub async fn read_from_file() -> Self {
-    //     #[allow(deprecated)] // windows not supported
-    //     let home_dir = std::env::home_dir().unwrap();
-    //     toml::from_str(
-    //         &tokio::fs::read_to_string(Path::new(&home_dir).join(".config/nix-relay/client.toml"))
-    //             .await
-    //             .expect("Unable to read ~/.config/nix-relay/client.toml"),
-    //     )
-    //     .expect("unable to parse config")
-    // }
+    let config = Config::load()?;
 
-    // pub fn read_from_env() -> Self {
-    //     toml::from_str(
-    //         &std::env::var("NIX_RELAY_CLIENT")
-    //             .expect("environment variable not found: `NIX_RELAY_CLIENT`"),
-    //     )
-    //     .expect("unable to parse config")
-    // }
+    let client = Client::new(config, cli);
 
-    pub fn temp() -> Self {
-        Config {
-            server_url: "localhost:4000".to_string(),
-        }
-    }
-}
-
-#[tokio::main]
-async fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    if args.len() < 3 {
-        eprintln!("Not enough arguments: {:?}", args);
-        return;
-    }
-    // eprintln!("arguments: {:?}", args);
-
-    let config = Config::temp();
-
-    let drv_path = &args[1];
-    let derivation_file = Command::new("nix")
-        .arg("derivation")
-        .arg("show")
-        .arg(drv_path)
-        .arg("-r")
-        .output()
-        .await
-        .unwrap()
-        .stdout;
-
-    let (mut ws_stream, _) = connect_async(config.websocket_url())
-        .await
-        .expect("failed to connect");
-    eprintln!("Connected to server");
-
-    ws_stream
-        .send(Message::text(format!(
-            "job {} {}",
-            drv_path,
-            String::from_utf8_lossy(&derivation_file)
-        )))
-        .await
-        .unwrap();
-    eprintln!("Sent job");
-
-    loop {
-        if let Some(msg) = ws_stream.next().await {
-            match msg.unwrap() {
-                Message::Text(text) => {
-                    eprintln!("received message: {:?}", text);
-                    if text == "true" {
-                        let result = Command::new("nix")
-                            .arg("copy")
-                            .arg("--from")
-                            .arg(config.cache_url())
-                            .arg(drv_path)
-                            .arg("--refresh")
-                            .arg("-v")
-                            .output()
-                            .await
-                            .map_err(|e| e.to_string())
-                            .unwrap();
-                        if result.status.success() {
-                            eprintln!("Successfully copied build result from server");
-                            // Exit with success - Nix will recognize the build as done
-                            std::process::exit(0);
-                        } else {
-                            eprintln!(
-                                "Failed to copy build result: {}",
-                                String::from_utf8_lossy(&result.stderr)
-                            );
-                            // Exit with failure - Nix will attempt to build locally
-                            std::process::exit(1);
-                        }
-                    }
-                    ws_stream.close(None).await.unwrap();
-                }
-                _ => {}
-            }
-        }
-    }
+    client.run()
 }

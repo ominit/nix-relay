@@ -98,8 +98,8 @@
     in {
       devShells = {
         default = pkgs.mkShell {
-          buildInputs =
-            []
+          buildInputs = with pkgs;
+            [cargo-edit]
             ++ commonRustDeps
             ++ elixirDeps;
           PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
@@ -110,7 +110,7 @@
         };
 
         rust = pkgs.mkShell {
-          buildInputs = commonRustDeps;
+          buildInputs = with pkgs; [cargo-edit] ++ commonRustDeps;
           PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
         };
       };
@@ -121,7 +121,7 @@
             cargoArtifacts = workerDeps;
           });
 
-        client = craneLib.buildPackage (clientArgs
+        nixr = craneLib.buildPackage (clientArgs
           // {
             cargoArtifacts = clientDeps;
           });

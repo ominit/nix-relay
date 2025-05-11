@@ -43,7 +43,7 @@ defmodule NixRelayServer.WebSocketHandlerTest do
         )
 
       # Verify the result
-      assert result == {:push, {:text, success}, state}
+      assert result == {:push, {:text, derivation <> " " <> to_string(success)}, state}
     end
 
     test "handles connection termination" do

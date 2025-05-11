@@ -10,8 +10,8 @@ defmodule NixRelayServer.ClientWebSocketHandler do
     {:ok, state}
   end
 
-  def handle_info({:complete, _derivation, success}, state) do
-    {:push, {:text, success}, state}
+  def handle_info({:complete, derivation, success}, state) do
+    {:push, {:text, derivation <> " " <> to_string(success)}, state}
   end
 
   # Invoked when the connection is closed
