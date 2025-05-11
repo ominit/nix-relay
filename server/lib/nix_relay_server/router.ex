@@ -23,7 +23,7 @@ defmodule NixRelayServer.Router do
 
     case NixRelayServer.Cache.store_nar(hash, body) do
       :ok ->
-        IO.puts("uploaded #{hash}.nar.xz")
+        # IO.puts("uploaded #{hash}.nar.xz")
         send_resp(conn, 200, "Uploaded #{hash}.nar.xz")
 
       :error ->
@@ -39,7 +39,7 @@ defmodule NixRelayServer.Router do
 
     case NixRelayServer.Cache.store_narinfo(hash, body) do
       :ok ->
-        IO.puts("uploaded #{hash}.narinfo")
+        # IO.puts("uploaded #{hash}.narinfo")
         send_resp(conn, 200, "Uploaded #{hash}.narinfo")
 
       :error ->
@@ -50,7 +50,7 @@ defmodule NixRelayServer.Router do
 
   get "/:hash.narinfo" do
     hash = conn.params["hash"]
-    IO.puts("get narinfo #{hash}")
+    # IO.puts("get narinfo #{hash}")
 
     case NixRelayServer.Cache.get_narinfo(hash) do
       {:ok, content} ->
@@ -63,7 +63,7 @@ defmodule NixRelayServer.Router do
 
   head "/:hash.narinfo" do
     hash = conn.params["hash"]
-    IO.puts("head #{hash}.narinfo")
+    # IO.puts("head #{hash}.narinfo")
 
     case NixRelayServer.Cache.get_narinfo(hash) do
       {:ok, content} ->
@@ -76,7 +76,7 @@ defmodule NixRelayServer.Router do
 
   get "/nar/:hash.nar.xz" do
     hash = conn.params["hash"]
-    IO.puts("get nar.xz #{hash}")
+    # IO.puts("get nar.xz #{hash}")
 
     case NixRelayServer.Cache.get_nar(hash) do
       {:ok, content} ->
@@ -89,7 +89,7 @@ defmodule NixRelayServer.Router do
 
   head "/nar/:hash.nar.xz" do
     hash = conn.params["hash"]
-    IO.puts("head nar.xz #{hash}")
+    # IO.puts("head nar.xz #{hash}")
 
     case NixRelayServer.Cache.get_nar(hash) do
       {:ok, content} ->
@@ -101,7 +101,7 @@ defmodule NixRelayServer.Router do
   end
 
   get "/nix-cache-info" do
-    IO.puts("get cache info")
+    # IO.puts("get cache info")
     send_resp(conn, 200, "Storedir: /nix/store")
   end
 

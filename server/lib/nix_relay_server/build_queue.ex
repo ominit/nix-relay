@@ -30,7 +30,7 @@ defmodule NixRelayServer.BuildQueue do
   def handle_cast({:remove_worker, worker_pid}, {queue, pending, workers}) do
     case(Map.pop(pending, worker_pid)) do
       {nil, ^pending} ->
-        new_workers = :queue.delete(worker_pid, workers)
+        new_workers = :queue.filter(fn pid -> pid != worker_pid end, workers)
         {:noreply, {queue, pending, new_workers}}
 
       {job, new_pending} ->
