@@ -1,0 +1,15 @@
+[advisories]
+unmaintained = "workspace"
+unused-ignored-advisory = "deny"
+
+[licenses]
+allow = []
+unused-allowed-license = "deny"
+
+[licenses.private]
+ignore = true
+
+[sources]
+unknown-git = "deny"
+unknown-registry = "deny"
+unused-allowed-source = "deny"

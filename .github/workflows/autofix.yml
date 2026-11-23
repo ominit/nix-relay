@@ -1,0 +1,27 @@
+name: autofix.ci
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+permissions:
+  contents: read
+concurrency:
+  group: autofix-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-autofix-${{ runner.os }}-${{ hashFiles('flake.lock', 'rust-toolchain.toml', 'nix/**') }}
+          restore-prefixes-first-match: nix-autofix-${{ runner.os }}-
+          save: ${{ github.ref == 'refs/heads/main' }}
+      - run: nix develop --command cargo autoinherit
+      - run: nix develop --command just generate-cargo-nix
+      - run: nix fmt
+      - uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a

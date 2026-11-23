@@ -1,0 +1,9 @@
+[package]
+edition.workspace = true
+name = "nix-relay-protocol"
+publish = false
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
