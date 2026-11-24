@@ -492,7 +492,7 @@ rec {
           }
           {
             name = "sha1";
-            packageId = "sha1";
+            packageId = "sha1 0.10.7";
             optional = true;
           }
           {
@@ -508,7 +508,7 @@ rec {
           }
           {
             name = "tokio-tungstenite";
-            packageId = "tokio-tungstenite";
+            packageId = "tokio-tungstenite 0.29.0";
             optional = true;
           }
           {
@@ -540,7 +540,7 @@ rec {
           }
           {
             name = "tokio-tungstenite";
-            packageId = "tokio-tungstenite";
+            packageId = "tokio-tungstenite 0.29.0";
           }
           {
             name = "tower";
@@ -726,7 +726,7 @@ rec {
         };
         resolvedDefaultFeatures = [ "std" ];
       };
-      "block-buffer" = rec {
+      "block-buffer 0.10.4" = rec {
         crateName = "block-buffer";
         version = "0.10.4";
         edition = "2018";
@@ -743,6 +743,26 @@ rec {
           }
         ];
 
+      };
+      "block-buffer 0.12.1" = rec {
+        crateName = "block-buffer";
+        version = "0.12.1";
+        edition = "2024";
+        sha256 = "1ak0cvmxz3yifqmzv6aba9606brsz7d5g3piv5xdcvjsx7dwgxnj";
+        libName = "block_buffer";
+        license = "MIT OR Apache-2.0";
+        authors = [
+          "RustCrypto Developers"
+        ];
+        dependencies = [
+          {
+            name = "hybrid-array";
+            packageId = "hybrid-array";
+          }
+        ];
+        features = {
+          "zeroize" = [ "dep:zeroize" ];
+        };
       };
       "bumpalo" = rec {
         crateName = "bumpalo";
@@ -1152,6 +1172,20 @@ rec {
         };
         resolvedDefaultFeatures = [ "alloc" "bytes" "default" "std" ];
       };
+      "const-oid" = rec {
+        crateName = "const-oid";
+        version = "0.10.3";
+        edition = "2024";
+        sha256 = "16is3l224m0m7lc2zqhmnfhv8mljkv1274v8k6hj32imhjld95dy";
+        libName = "const_oid";
+        license = "Apache-2.0 OR MIT";
+        authors = [
+          "RustCrypto Developers"
+        ];
+        features = {
+          "arbitrary" = [ "dep:arbitrary" ];
+        };
+      };
       "core-foundation 0.10.1" = rec {
         crateName = "core-foundation";
         version = "0.10.1";
@@ -1317,7 +1351,7 @@ rec {
         ];
 
       };
-      "crypto-common" = rec {
+      "crypto-common 0.1.7" = rec {
         crateName = "crypto-common";
         version = "0.1.7";
         edition = "2018";
@@ -1344,6 +1378,28 @@ rec {
         };
         resolvedDefaultFeatures = [ "std" ];
       };
+      "crypto-common 0.2.2" = rec {
+        crateName = "crypto-common";
+        version = "0.2.2";
+        edition = "2024";
+        sha256 = "0lql5wjlrjkd3r0w32rwbgqfmgg84ms3h65ldnlckmkc3nb4qvnf";
+        libName = "crypto_common";
+        license = "MIT OR Apache-2.0";
+        authors = [
+          "RustCrypto Developers"
+        ];
+        dependencies = [
+          {
+            name = "hybrid-array";
+            packageId = "hybrid-array";
+          }
+        ];
+        features = {
+          "getrandom" = [ "rand_core" "dep:getrandom" ];
+          "rand_core" = [ "dep:rand_core" ];
+          "zeroize" = [ "hybrid-array/zeroize" ];
+        };
+      };
       "data-encoding" = rec {
         crateName = "data-encoding";
         version = "2.11.1";
@@ -1357,7 +1413,7 @@ rec {
         };
         resolvedDefaultFeatures = [ "alloc" "default" "std" ];
       };
-      "digest" = rec {
+      "digest 0.10.7" = rec {
         crateName = "digest";
         version = "0.10.7";
         edition = "2018";
@@ -1369,12 +1425,12 @@ rec {
         dependencies = [
           {
             name = "block-buffer";
-            packageId = "block-buffer";
+            packageId = "block-buffer 0.10.4";
             optional = true;
           }
           {
             name = "crypto-common";
-            packageId = "crypto-common";
+            packageId = "crypto-common 0.1.7";
           }
         ];
         features = {
@@ -1391,6 +1447,45 @@ rec {
           "subtle" = [ "dep:subtle" ];
         };
         resolvedDefaultFeatures = [ "alloc" "block-buffer" "core-api" "default" "std" ];
+      };
+      "digest 0.11.3" = rec {
+        crateName = "digest";
+        version = "0.11.3";
+        edition = "2024";
+        sha256 = "1hnmhd4rkybr11292w42pz9ppzx1h49glrhqg107k4s1b2xnvpgi";
+        license = "MIT OR Apache-2.0";
+        authors = [
+          "RustCrypto Developers"
+        ];
+        dependencies = [
+          {
+            name = "block-buffer";
+            packageId = "block-buffer 0.12.1";
+            optional = true;
+          }
+          {
+            name = "const-oid";
+            packageId = "const-oid";
+            optional = true;
+          }
+          {
+            name = "crypto-common";
+            packageId = "crypto-common 0.2.2";
+            rename = "common";
+          }
+        ];
+        features = {
+          "blobby" = [ "dep:blobby" ];
+          "block-api" = [ "dep:block-buffer" ];
+          "default" = [ "block-api" ];
+          "dev" = [ "blobby" ];
+          "getrandom" = [ "common/getrandom" "rand_core" ];
+          "mac" = [ "dep:ctutils" ];
+          "oid" = [ "dep:const-oid" ];
+          "rand_core" = [ "common/rand_core" ];
+          "zeroize" = [ "dep:zeroize" "block-buffer?/zeroize" ];
+        };
+        resolvedDefaultFeatures = [ "alloc" "block-api" "default" "oid" ];
       };
       "displaydoc" = rec {
         crateName = "displaydoc";
@@ -2289,6 +2384,33 @@ rec {
           "Pyfisch <pyfisch@posteo.org>"
         ];
 
+      };
+      "hybrid-array" = rec {
+        crateName = "hybrid-array";
+        version = "0.4.15";
+        edition = "2024";
+        sha256 = "05wsyp2n5gyf49qk51mblj9qyb15aay74m6fwmf74mpv1pqn9y17";
+        libName = "hybrid_array";
+        license = "MIT OR Apache-2.0";
+        authors = [
+          "RustCrypto Developers"
+        ];
+        dependencies = [
+          {
+            name = "typenum";
+            packageId = "typenum";
+            features = [ "const-generics" ];
+          }
+        ];
+        features = {
+          "arbitrary" = [ "dep:arbitrary" ];
+          "bytemuck" = [ "dep:bytemuck" ];
+          "ctutils" = [ "dep:ctutils" ];
+          "serde" = [ "dep:serde" ];
+          "subtle" = [ "dep:subtle" ];
+          "zerocopy" = [ "dep:zerocopy" ];
+          "zeroize" = [ "dep:zeroize" ];
+        };
       };
       "hyper" = rec {
         crateName = "hyper";
@@ -3663,7 +3785,7 @@ rec {
           }
           {
             name = "tokio-tungstenite";
-            packageId = "tokio-tungstenite";
+            packageId = "tokio-tungstenite 0.30.0";
           }
           {
             name = "tracing";
@@ -3731,7 +3853,7 @@ rec {
           }
           {
             name = "tokio-tungstenite";
-            packageId = "tokio-tungstenite";
+            packageId = "tokio-tungstenite 0.30.0";
           }
           {
             name = "toml";
@@ -5698,7 +5820,7 @@ rec {
         };
         resolvedDefaultFeatures = [ "alloc" "serde" "std" ];
       };
-      "sha1" = rec {
+      "sha1 0.10.7" = rec {
         crateName = "sha1";
         version = "0.10.7";
         edition = "2018";
@@ -5719,13 +5841,13 @@ rec {
           }
           {
             name = "digest";
-            packageId = "digest";
+            packageId = "digest 0.10.7";
           }
         ];
         devDependencies = [
           {
             name = "digest";
-            packageId = "digest";
+            packageId = "digest 0.10.7";
             features = [ "dev" ];
           }
         ];
@@ -5735,6 +5857,45 @@ rec {
           "std" = [ "digest/std" ];
         };
         resolvedDefaultFeatures = [ "default" "std" ];
+      };
+      "sha1 0.11.0" = rec {
+        crateName = "sha1";
+        version = "0.11.0";
+        edition = "2024";
+        sha256 = "05025pf8d8zr2qq5xyh5m3wqls1fn7813gz1mfs7551mk724rk5a";
+        license = "MIT OR Apache-2.0";
+        authors = [
+          "RustCrypto Developers"
+        ];
+        dependencies = [
+          {
+            name = "cfg-if";
+            packageId = "cfg-if";
+          }
+          {
+            name = "cpufeatures";
+            packageId = "cpufeatures 0.3.1";
+            target = { target, features }: (("aarch64" == target."arch" or null) || ("x86" == target."arch" or null) || ("x86_64" == target."arch" or null));
+          }
+          {
+            name = "digest";
+            packageId = "digest 0.11.3";
+          }
+        ];
+        devDependencies = [
+          {
+            name = "digest";
+            packageId = "digest 0.11.3";
+            features = [ "dev" ];
+          }
+        ];
+        features = {
+          "alloc" = [ "digest/alloc" ];
+          "default" = [ "alloc" "oid" ];
+          "oid" = [ "digest/oid" ];
+          "zeroize" = [ "digest/zeroize" ];
+        };
+        resolvedDefaultFeatures = [ "alloc" "default" "oid" ];
       };
       "sharded-slab" = rec {
         crateName = "sharded-slab";
@@ -6473,7 +6634,7 @@ rec {
         };
         resolvedDefaultFeatures = [ "aws-lc-rs" "aws_lc_rs" "tls12" ];
       };
-      "tokio-tungstenite" = rec {
+      "tokio-tungstenite 0.29.0" = rec {
         crateName = "tokio-tungstenite";
         version = "0.29.0";
         edition = "2018";
@@ -6503,7 +6664,69 @@ rec {
           }
           {
             name = "tungstenite";
-            packageId = "tungstenite";
+            packageId = "tungstenite 0.29.0";
+            usesDefaultFeatures = false;
+          }
+        ];
+        devDependencies = [
+          {
+            name = "tokio";
+            packageId = "tokio";
+            usesDefaultFeatures = false;
+            features = [ "io-std" "macros" "net" "rt-multi-thread" "time" ];
+          }
+        ];
+        features = {
+          "__rustls-tls" = [ "rustls" "rustls-pki-types" "tokio-rustls" "stream" "tungstenite/__rustls-tls" "handshake" ];
+          "connect" = [ "stream" "tokio/net" "handshake" ];
+          "default" = [ "connect" "handshake" ];
+          "handshake" = [ "tungstenite/handshake" ];
+          "native-tls" = [ "native-tls-crate" "tokio-native-tls" "stream" "tungstenite/native-tls" "handshake" ];
+          "native-tls-crate" = [ "dep:native-tls-crate" ];
+          "native-tls-vendored" = [ "native-tls" "native-tls-crate/vendored" "tungstenite/native-tls-vendored" ];
+          "rustls" = [ "dep:rustls" ];
+          "rustls-native-certs" = [ "dep:rustls-native-certs" ];
+          "rustls-pki-types" = [ "dep:rustls-pki-types" ];
+          "rustls-tls-native-roots" = [ "__rustls-tls" "rustls-native-certs" ];
+          "rustls-tls-webpki-roots" = [ "__rustls-tls" "webpki-roots" ];
+          "tokio-native-tls" = [ "dep:tokio-native-tls" ];
+          "tokio-rustls" = [ "dep:tokio-rustls" ];
+          "url" = [ "tungstenite/url" ];
+          "webpki-roots" = [ "dep:webpki-roots" ];
+        };
+        resolvedDefaultFeatures = [ "connect" "default" "handshake" "stream" ];
+      };
+      "tokio-tungstenite 0.30.0" = rec {
+        crateName = "tokio-tungstenite";
+        version = "0.30.0";
+        edition = "2018";
+        sha256 = "0wdx24sfglza6fcvz2p04aawv4wa80qq01ksd4va4gsnxnzp780p";
+        libName = "tokio_tungstenite";
+        license = "MIT";
+        authors = [
+          "Daniel Abramov <dabramov@snapview.de>"
+          "Alexey Galakhov <agalakhov@snapview.de>"
+        ];
+        dependencies = [
+          {
+            name = "futures-util";
+            packageId = "futures-util";
+            usesDefaultFeatures = false;
+            features = [ "sink" "std" ];
+          }
+          {
+            name = "log";
+            packageId = "log";
+          }
+          {
+            name = "tokio";
+            packageId = "tokio";
+            usesDefaultFeatures = false;
+            features = [ "io-util" ];
+          }
+          {
+            name = "tungstenite";
+            packageId = "tungstenite 0.30.0";
             usesDefaultFeatures = false;
           }
         ];
@@ -7233,7 +7456,7 @@ rec {
         ];
 
       };
-      "tungstenite" = rec {
+      "tungstenite 0.29.0" = rec {
         crateName = "tungstenite";
         version = "0.29.0";
         edition = "2021";
@@ -7273,7 +7496,7 @@ rec {
           }
           {
             name = "sha1";
-            packageId = "sha1";
+            packageId = "sha1 0.10.7";
             optional = true;
           }
           {
@@ -7308,6 +7531,81 @@ rec {
         };
         resolvedDefaultFeatures = [ "data-encoding" "handshake" "http" "httparse" "sha1" ];
       };
+      "tungstenite 0.30.0" = rec {
+        crateName = "tungstenite";
+        version = "0.30.0";
+        edition = "2021";
+        sha256 = "08lxarf1fbb0zf9y04hf1ss9rb0m8ar2h8dba051375ifiqwg2p4";
+        license = "MIT OR Apache-2.0";
+        authors = [
+          "Alexey Galakhov"
+          "Daniel Abramov"
+        ];
+        dependencies = [
+          {
+            name = "bytes";
+            packageId = "bytes";
+          }
+          {
+            name = "data-encoding";
+            packageId = "data-encoding";
+            optional = true;
+          }
+          {
+            name = "http";
+            packageId = "http";
+            optional = true;
+          }
+          {
+            name = "httparse";
+            packageId = "httparse";
+            optional = true;
+          }
+          {
+            name = "log";
+            packageId = "log";
+          }
+          {
+            name = "rand";
+            packageId = "rand 0.10.4";
+          }
+          {
+            name = "sha1";
+            packageId = "sha1 0.11.0";
+            optional = true;
+          }
+          {
+            name = "thiserror";
+            packageId = "thiserror";
+          }
+        ];
+        devDependencies = [
+          {
+            name = "rand";
+            packageId = "rand 0.10.4";
+          }
+        ];
+        features = {
+          "__rustls-tls" = [ "rustls" "rustls-pki-types" ];
+          "data-encoding" = [ "dep:data-encoding" ];
+          "default" = [ "handshake" ];
+          "handshake" = [ "data-encoding" "http" "httparse" "sha1" ];
+          "http" = [ "dep:http" ];
+          "httparse" = [ "dep:httparse" ];
+          "native-tls" = [ "native-tls-crate" ];
+          "native-tls-crate" = [ "dep:native-tls-crate" ];
+          "native-tls-vendored" = [ "native-tls" "native-tls-crate/vendored" ];
+          "rustls" = [ "dep:rustls" ];
+          "rustls-native-certs" = [ "dep:rustls-native-certs" ];
+          "rustls-pki-types" = [ "dep:rustls-pki-types" ];
+          "rustls-tls-native-roots" = [ "__rustls-tls" "rustls-native-certs" ];
+          "rustls-tls-webpki-roots" = [ "__rustls-tls" "webpki-roots" ];
+          "sha1" = [ "dep:sha1" ];
+          "url" = [ "dep:url" ];
+          "webpki-roots" = [ "dep:webpki-roots" ];
+        };
+        resolvedDefaultFeatures = [ "data-encoding" "handshake" "http" "httparse" "sha1" ];
+      };
       "typenum" = rec {
         crateName = "typenum";
         version = "1.20.1";
@@ -7318,6 +7616,7 @@ rec {
           "scale-info" = [ "dep:scale-info" ];
           "scale_info" = [ "scale-info/derive" ];
         };
+        resolvedDefaultFeatures = [ "const-generics" ];
       };
       "unicode-ident" = rec {
         crateName = "unicode-ident";
