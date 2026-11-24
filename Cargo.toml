@@ -9,6 +9,7 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
+license = "Apache-2.0"
 rust-version = "1.100.0"
 version = "0.1.0"
 
@@ -20,13 +21,15 @@ all = { level = "deny", priority = -1 }
 allow_attributes = "deny"
 allow_attributes_without_reason = "deny"
 await_holding_lock = "deny"
+cast_possible_truncation = "deny"
+cast_possible_wrap = "deny"
+cast_sign_loss = "deny"
 dbg_macro = "deny"
 expect_used = "deny"
 filetype_is_file = "deny"
 future_not_send = "deny"
 implicit_clone = "deny"
 indexing_slicing = "deny"
-iter_over_hash_type = "deny"
 large_futures = "deny"
 large_stack_arrays = "deny"
 manual_let_else = "deny"
@@ -36,7 +39,6 @@ mutex_atomic = "deny"
 needless_collect = "deny"
 panic = "deny"
 panic_in_result_fn = "deny"
-print_stderr = "deny"
 readonly_write_lock = "deny"
 redundant_clone = "deny"
 redundant_test_prefix = "deny"
@@ -69,7 +71,6 @@ opt-level = 1
 [profile.release]
 codegen-units = 1
 lto = true
-opt-level = "s"
 strip = true
 
 [workspace.dependencies]

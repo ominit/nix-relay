@@ -1,5 +1,6 @@
 [package]
 edition.workspace = true
+license.workspace = true
 name = "nix-relay-server"
 publish = false
 rust-version.workspace = true

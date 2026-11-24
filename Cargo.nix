@@ -117,6 +117,7 @@ rec {
         edition = "2024";
         src = lib.cleanSourceWith { filter = sourceFilter;  src = ./crates/nix-relay-protocol; };
         libName = "nix_relay_protocol";
+        license = "Apache-2.0";
 
       };
       "nix-relay-server" = rec {
@@ -131,6 +132,7 @@ rec {
           }
         ];
         src = lib.cleanSourceWith { filter = sourceFilter;  src = ./crates/nix-relay-server; };
+        license = "Apache-2.0";
 
       };
       "nix-relay-worker" = rec {
@@ -145,6 +147,7 @@ rec {
           }
         ];
         src = lib.cleanSourceWith { filter = sourceFilter;  src = ./crates/nix-relay-worker; };
+        license = "Apache-2.0";
 
       };
       "nixr" = rec {
@@ -159,6 +162,7 @@ rec {
           }
         ];
         src = lib.cleanSourceWith { filter = sourceFilter;  src = ./crates/nixr; };
+        license = "Apache-2.0";
 
       };
     };
