@@ -122,7 +122,7 @@
                 pkgs.pkg-config
               ]
               ++ nativeBuildInputs;
-            inherit buildInputs;
+            buildInputs = [pkgs.aws-lc] ++ buildInputs;
             cargoDeps = pkgs.rustPlatform.importCargoLock {
               lockFile = ../Cargo.lock;
             };
@@ -167,9 +167,12 @@
         passthru = lib.optionalAttrs (dependenciesCommand != null) {inherit dependencies;};
       };
 
-    testChecks =
-      lib.genAttrs' memberNames (name:
-        lib.nameValuePair "test-${name}" (debugCrates.withTests name {}));
+    testChecks = lib.genAttrs' memberNames (name:
+      lib.nameValuePair "test-${name}" (debugCrates.withTests name {
+        testPreRun = ''
+          export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+        '';
+      }));
   in {
     packages = {
       inherit (releaseCrates.crates) nix-relay-server nix-relay-worker nixr;
