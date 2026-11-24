@@ -35,13 +35,7 @@ async fn main() -> Result<ExitCode> {
             let token = config.token()?;
             let request = flake::request(&installable).await?;
             match build::remote(&config.relay, token.as_deref(), request).await? {
-                Outcome::Succeeded {
-                    outputs,
-                    fetch_from,
-                } => {
-                    build::fetch(&outputs, fetch_from.as_deref()).await?;
-                    Ok(ExitCode::SUCCESS)
-                }
+                Outcome::Succeeded { .. } => Ok(ExitCode::SUCCESS),
                 Outcome::Failed { error } => {
                     eprintln!("error: {error}");
                     Ok(ExitCode::FAILURE)

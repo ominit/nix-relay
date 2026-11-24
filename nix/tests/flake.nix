@@ -16,9 +16,12 @@
     mid = mk "mid" [leaf1 leaf2] {};
     top = mk "top" [mid leaf3 local] {};
     broken = mk "broken" [leaf1] {args = ["-c" "echo about to fail; exit 3"];};
+    gcInput = mk "gc-input" [] {};
+    gate = mk "gate" [gcInput] {requiredSystemFeatures = ["gc-gate"];};
+    gated = mk "gated" [gate] {};
   in {
     packages.${system} = {
-      inherit top broken;
+      inherit top broken gated;
       default = top;
     };
   };

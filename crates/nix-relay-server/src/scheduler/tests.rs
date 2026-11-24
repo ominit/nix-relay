@@ -41,6 +41,7 @@ fn planned(derivations: Vec<PlannedDerivation>) -> EvalResult {
         plan: Plan {
             outputs: vec!["/nix/store/root".to_owned()],
             derivations,
+            available: vec!["/nix/store/cached".to_owned()],
         },
     }
 }
@@ -295,13 +296,76 @@ fn results_from_unknown_derivations_free_the_slot() {
 }
 
 #[test]
-fn a_client_leaving_during_evaluation_ends_its_upload() {
+fn a_client_leaving_during_evaluation_ends_its_upload_and_releases_roots() {
     let mut s = Scheduler::new(CACHE.to_owned());
     s.add_worker(1, info("w", true, 1));
     let w = evaluating(&mut s, 5);
     let actions = s.client_gone(5);
     assert_eq!(
         actions,
-        vec![Action::Worker(w, RelayMessage::UploadDone { build: 5 })]
+        vec![
+            Action::Worker(w, RelayMessage::UploadDone { build: 5 }),
+            Action::Worker(w, RelayMessage::Release { build: 5 }),
+        ]
     );
+}
+
+fn protects(actions: &[Action]) -> Vec<(WorkerId, BuildId, Vec<String>)> {
+    actions
+        .iter()
+        .filter_map(|action| match action {
+            Action::Worker(worker, RelayMessage::Protect { build, paths }) => {
+                Some((*worker, *build, paths.clone()))
+            }
+            Action::Worker(..) | Action::Client(..) => None,
+        })
+        .collect()
+}
+
+#[test]
+fn the_cache_host_roots_a_plan_until_the_client_leaves() {
+    let mut s = Scheduler::new(CACHE.to_owned());
+    s.add_worker(1, info("host", true, 1));
+    s.add_worker(2, info("builder", false, 1));
+    let w = evaluating(&mut s, 7);
+    let actions = s.evaluated(w, 7, planned(vec![drv("a", &[]), drv("b", &["a"])]));
+    let expected = vec![
+        "/nix/store/a".to_owned(),
+        path("a"),
+        "/nix/store/b".to_owned(),
+        path("b"),
+        "/nix/store/cached".to_owned(),
+        "/nix/store/root".to_owned(),
+    ];
+    assert_eq!(protects(&actions), vec![(1, 7, expected)]);
+
+    s.built(1, &path("a"), BuildResult::Succeeded);
+    let actions = s.built(1, &path("b"), BuildResult::Succeeded);
+    assert!(finished(&actions, 7).is_some());
+    assert!(
+        !actions
+            .iter()
+            .any(|a| matches!(a, Action::Worker(_, RelayMessage::Release { .. })))
+    );
+
+    let actions = s.client_gone(7);
+    assert_eq!(
+        actions,
+        vec![Action::Worker(1, RelayMessage::Release { build: 7 })]
+    );
+}
+
+#[test]
+fn a_reconnecting_cache_host_gets_the_roots_again() {
+    let mut s = Scheduler::new(CACHE.to_owned());
+    s.add_worker(1, info("host", true, 1));
+    let w = evaluating(&mut s, 3);
+    s.evaluated(w, 3, planned(vec![drv("a", &[])]));
+    s.remove_worker(1);
+    let actions = s.add_worker(2, info("host", true, 1));
+    let protected = protects(&actions);
+    assert_eq!(protected.len(), 1);
+    assert_eq!(protected[0].0, 2);
+    assert_eq!(protected[0].1, 3);
+    assert!(protects(&s.add_worker(4, info("builder", false, 1))).is_empty());
 }

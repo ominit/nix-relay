@@ -102,6 +102,13 @@ pub enum RelayMessage {
     Build {
         job: Job,
     },
+    Protect {
+        build: BuildId,
+        paths: Vec<StorePath>,
+    },
+    Release {
+        build: BuildId,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -129,6 +136,7 @@ pub enum BuildResult {
 pub struct Plan {
     pub outputs: Vec<StorePath>,
     pub derivations: Vec<PlannedDerivation>,
+    pub available: Vec<StorePath>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

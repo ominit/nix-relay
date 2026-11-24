@@ -100,16 +100,30 @@ impl Planner {
         }
         drop(checks);
 
+        let mut available = BTreeSet::new();
         let derivations = in_plan
             .iter()
             .filter_map(|drv| {
                 let derivation = drvs.get(drv)?;
+                for (input, names) in &derivation.input_drvs {
+                    if in_plan.contains(input) {
+                        continue;
+                    }
+                    if let Some(dep) = drvs.get(input) {
+                        available.extend(
+                            names
+                                .iter()
+                                .filter_map(|name| dep.outputs.get(name).cloned()),
+                        );
+                    }
+                }
                 Some(planned(drv, derivation, &in_plan, &drvs))
             })
             .collect();
         Ok(Plan {
             outputs,
             derivations,
+            available: available.into_iter().collect(),
         })
     }
 

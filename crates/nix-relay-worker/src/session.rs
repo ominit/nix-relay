@@ -1,9 +1,12 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 
 use color_eyre::eyre::{Result, WrapErr, bail};
 use futures_util::{SinkExt, StreamExt};
 use nix_relay_protocol::{BuildId, RelayMessage, VERSION, WorkerInfo, WorkerMessage, decode_frame};
-use tokio::{sync::mpsc, task::JoinSet};
+use tokio::{
+    sync::mpsc,
+    task::{AbortHandle, JoinSet},
+};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -17,6 +20,7 @@ use crate::{
     jobs::Context,
     nix,
     plan::{Planner, cache_urls},
+    roots::Roots,
 };
 
 const IDLE_TIMEOUT: Duration = Duration::from_secs(60);
@@ -25,6 +29,7 @@ pub struct Settings {
     pub relay: String,
     pub token: Option<String>,
     pub info: WorkerInfo,
+    pub gc_roots: PathBuf,
 }
 
 pub async fn run(settings: &Settings) -> Result<()> {
@@ -58,7 +63,9 @@ pub async fn run(settings: &Settings) -> Result<()> {
                 } => break (cache_url, cache_store),
                 RelayMessage::Eval { .. }
                 | RelayMessage::UploadDone { .. }
-                | RelayMessage::Build { .. } => bail!("relay sent a job before welcoming us"),
+                | RelayMessage::Build { .. }
+                | RelayMessage::Protect { .. }
+                | RelayMessage::Release { .. } => bail!("relay sent a job before welcoming us"),
             },
             Ok(Some(Ok(
                 Message::Binary(_) | Message::Ping(_) | Message::Pong(_) | Message::Frame(_),
@@ -78,6 +85,7 @@ pub async fn run(settings: &Settings) -> Result<()> {
         cache_url,
         cache_store,
         cache_host: settings.info.cache_host,
+        roots: Roots::new(settings.gc_roots.clone()),
     });
 
     let writer = tokio::spawn(async move {
@@ -97,6 +105,7 @@ pub async fn run(settings: &Settings) -> Result<()> {
 
     let mut tasks = JoinSet::new();
     let mut uploads: HashMap<BuildId, mpsc::Sender<Vec<u8>>> = HashMap::new();
+    let mut evals: HashMap<BuildId, AbortHandle> = HashMap::new();
     let (evaluated, mut evaluations) = mpsc::unbounded_channel::<BuildId>();
 
     let result = loop {
@@ -118,14 +127,28 @@ pub async fn run(settings: &Settings) -> Result<()> {
                             uploads.insert(build, tx);
                             let ctx = ctx.clone();
                             let evaluated = evaluated.clone();
-                            tasks.spawn(async move {
+                            let handle = tasks.spawn(async move {
                                 let result = ctx.eval(build, request, rx).await;
                                 let _ = ctx.out.send(WorkerMessage::Evaluated { build, result }).await;
+                                if !ctx.cache_host {
+                                    ctx.roots.release(&Roots::build_key(build));
+                                }
                                 let _ = evaluated.send(build);
                             });
+                            evals.insert(build, handle);
                         }
                         RelayMessage::UploadDone { build } => {
                             uploads.remove(&build);
+                        }
+                        RelayMessage::Protect { build, paths } => {
+                            ctx.roots.protect(&Roots::build_key(build), &paths);
+                        }
+                        RelayMessage::Release { build } => {
+                            if let Some(eval) = evals.remove(&build) {
+                                eval.abort();
+                            }
+                            uploads.remove(&build);
+                            ctx.roots.release(&Roots::build_key(build));
                         }
                         RelayMessage::Build { job } => {
                             tracing::info!(drv = %job.drv, "building");
@@ -154,6 +177,7 @@ pub async fn run(settings: &Settings) -> Result<()> {
             },
             Some(build) = evaluations.recv() => {
                 uploads.remove(&build);
+                evals.remove(&build);
             }
             Some(joined) = tasks.join_next() => {
                 if let Err(error) = joined {

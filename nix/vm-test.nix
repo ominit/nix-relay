@@ -53,6 +53,7 @@
 
         builder = {
           imports = [worker];
+          nix.settings.system-features = ["gc-gate"];
           programs.ssh.extraConfig = ''
             Host mayohiga
               StrictHostKeyChecking no
@@ -74,7 +75,7 @@
         key = builder.succeed("cat /root/.ssh/id_ed25519.pub").strip()
         mayohiga.wait_for_unit("sshd.service")
         mayohiga.succeed(f"install -d -o relay -m 700 /home/relay/.ssh && echo '{key}' > /home/relay/.ssh/authorized_keys && chown relay /home/relay/.ssh/authorized_keys")
-        builder.succeed("ssh relay@mayohiga true")
+        builder.succeed("ssh -n relay@mayohiga true")
 
         mayohiga.wait_for_unit("harmonia.socket")
         mayohiga.wait_for_unit("nix-relay-server.service")
@@ -114,6 +115,21 @@
             print(out)
             assert "about to fail" in out
             assert "broken.drv failed on" in out
+
+        with subtest("garbage collection on the cache host keeps what a running build needs"):
+            roots = "/nix/var/nix/gcroots/nix-relay/mayohiga/builds"
+            builder.succeed("systemctl stop nix-relay-worker")
+            client.succeed("systemd-run --unit gated --working-directory /root/proj -E HOME=/root -E PATH=$PATH sh -c 'nixr build .#gated > /tmp/gated.log 2>&1; echo $? > /tmp/gated.status'")
+            client.wait_until_succeeds("grep -q 'built gc-input' /tmp/gated.log")
+            mayohiga.succeed("systemctl restart nix-relay-worker")
+            mayohiga.wait_until_succeeds(f"ls {roots}/*/*-gate.drv")
+            mayohiga.succeed("nix-store --gc")
+            builder.succeed("systemctl start nix-relay-worker")
+            client.wait_until_succeeds("test -e /tmp/gated.status")
+            print(client.succeed("cat /tmp/gated.log"))
+            client.succeed("test $(cat /tmp/gated.status) = 0")
+            client.succeed("grep -q '^first ' /root/proj/result")
+            mayohiga.wait_until_succeeds(f"test -z \"$(ls -A {roots})\"")
 
         with subtest("nixr is rejected without the token"):
             client.succeed("printf 'relay = \"ws://mayohiga:7375\"\\n' > /root/.config/nixr/config.toml")

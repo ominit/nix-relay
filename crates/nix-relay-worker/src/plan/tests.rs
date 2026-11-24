@@ -114,6 +114,7 @@ async fn plans_only_what_no_cache_has_and_stops_at_cached_inputs() {
 
     assert_eq!(plan.outputs, vec![out("root")]);
     assert_eq!(names(&plan), vec!["lib", "root"]);
+    assert_eq!(plan.available, vec![out("cached")]);
     let root = plan
         .derivations
         .iter()

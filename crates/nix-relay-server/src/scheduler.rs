@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
 use nix_relay_protocol::{
     BuildId, BuildRequest, BuildResult, ClientEvent, DrvPath, EvalResult, Job, Outcome, Plan,
-    PlannedDerivation, RelayMessage, WorkerInfo,
+    PlannedDerivation, RelayMessage, StorePath, WorkerInfo,
 };
 
 pub type WorkerId = u64;
@@ -64,6 +64,7 @@ pub struct Scheduler {
     cache_url: String,
     workers: BTreeMap<WorkerId, Worker>,
     builds: BTreeMap<BuildId, Build>,
+    protected: BTreeMap<BuildId, Vec<StorePath>>,
     nodes: HashMap<DrvPath, Node>,
     ready: VecDeque<DrvPath>,
 }
@@ -74,6 +75,7 @@ impl Scheduler {
             cache_url,
             workers: BTreeMap::new(),
             builds: BTreeMap::new(),
+            protected: BTreeMap::new(),
             nodes: HashMap::new(),
             ready: VecDeque::new(),
         }
@@ -87,6 +89,18 @@ impl Scheduler {
     }
 
     pub fn add_worker(&mut self, id: WorkerId, info: WorkerInfo) -> Vec<Action> {
+        let mut actions = Vec::new();
+        if info.cache_host {
+            for (&build, paths) in &self.protected {
+                actions.push(Action::Worker(
+                    id,
+                    RelayMessage::Protect {
+                        build,
+                        paths: paths.clone(),
+                    },
+                ));
+            }
+        }
         self.workers.insert(
             id,
             Worker {
@@ -94,7 +108,8 @@ impl Scheduler {
                 running: HashSet::new(),
             },
         );
-        self.dispatch()
+        actions.extend(self.dispatch());
+        actions
     }
 
     pub fn remove_worker(&mut self, id: WorkerId) -> Vec<Action> {
@@ -179,16 +194,53 @@ impl Scheduler {
     }
 
     pub fn client_gone(&mut self, build: BuildId) -> Vec<Action> {
-        let Some(removed) = self.builds.remove(&build) else {
-            return Vec::new();
-        };
         let mut actions = Vec::new();
-        if let Phase::Evaluating(worker) = removed.phase {
-            actions.push(Action::Worker(worker, RelayMessage::UploadDone { build }));
+        let mut holders = self.cache_hosts();
+        if let Some(removed) = self.builds.remove(&build) {
+            if let Phase::Evaluating(worker) = removed.phase {
+                actions.push(Action::Worker(worker, RelayMessage::UploadDone { build }));
+                holders.insert(worker);
+            }
+            self.detach(build);
         }
-        self.detach(build);
+        self.protected.remove(&build);
+        for worker in holders {
+            actions.push(Action::Worker(worker, RelayMessage::Release { build }));
+        }
         actions.extend(self.dispatch());
         actions
+    }
+
+    fn cache_hosts(&self) -> BTreeSet<WorkerId> {
+        self.workers
+            .iter()
+            .filter(|(_, w)| w.info.cache_host)
+            .map(|(&id, _)| id)
+            .collect()
+    }
+
+    fn protect(&mut self, build: BuildId, plan: &Plan, actions: &mut Vec<Action>) {
+        let paths: BTreeSet<&StorePath> = plan
+            .outputs
+            .iter()
+            .chain(&plan.available)
+            .chain(
+                plan.derivations
+                    .iter()
+                    .flat_map(|d| std::iter::once(&d.drv).chain(&d.outputs)),
+            )
+            .collect();
+        let paths: Vec<StorePath> = paths.into_iter().cloned().collect();
+        for worker in self.cache_hosts() {
+            actions.push(Action::Worker(
+                worker,
+                RelayMessage::Protect {
+                    build,
+                    paths: paths.clone(),
+                },
+            ));
+        }
+        self.protected.insert(build, paths);
     }
 
     pub fn evaluated(
@@ -205,7 +257,10 @@ impl Scheduler {
             EvalResult::Failed { error } => {
                 self.finish(build, Outcome::Failed { error }, &mut actions)
             }
-            EvalResult::Planned { plan } => self.merge(build, plan, &mut actions),
+            EvalResult::Planned { plan } => {
+                self.protect(build, &plan, &mut actions);
+                self.merge(build, plan, &mut actions);
+            }
         }
         actions.extend(self.dispatch());
         actions

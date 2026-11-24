@@ -2,6 +2,7 @@ mod drv;
 mod jobs;
 mod nix;
 mod plan;
+mod roots;
 mod session;
 
 use std::{io::IsTerminal, path::PathBuf, time::Duration};
@@ -29,6 +30,8 @@ struct Args {
     jobs: Option<usize>,
     #[arg(long)]
     cache_host: bool,
+    #[arg(long)]
+    gc_roots: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -50,14 +53,18 @@ async fn main() -> Result<()> {
         ),
         None => None,
     };
+    let name = match args.name {
+        Some(name) => name,
+        None => hostname()?,
+    };
     let settings = Settings {
         relay: args.relay,
         token,
+        gc_roots: args
+            .gc_roots
+            .unwrap_or_else(|| PathBuf::from("/nix/var/nix/gcroots/nix-relay").join(&name)),
         info: WorkerInfo {
-            name: match args.name {
-                Some(name) => name,
-                None => hostname()?,
-            },
+            name,
             systems: systems().await?,
             features: nix::config("system-features")
                 .await?

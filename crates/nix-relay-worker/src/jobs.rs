@@ -9,6 +9,7 @@ use tokio::{io::AsyncWriteExt, sync::mpsc};
 use crate::{
     nix::{self, Outbox},
     plan::{self, Planner},
+    roots::Roots,
 };
 
 pub struct Context {
@@ -17,6 +18,7 @@ pub struct Context {
     pub cache_store: String,
     pub cache_host: bool,
     pub planner: Planner,
+    pub roots: Roots,
 }
 
 impl Context {
@@ -49,6 +51,8 @@ impl Context {
         sources: &[String],
         upload: mpsc::Receiver<Vec<u8>>,
     ) -> Result<Plan> {
+        let key = Roots::build_key(build);
+        self.roots.protect(&key, sources);
         let missing = invalid_paths(sources).await?;
         if !missing.is_empty() {
             self.out
@@ -81,6 +85,7 @@ impl Context {
         })
         .await?;
         let roots = plan::roots(&String::from_utf8_lossy(&stdout))?;
+        self.roots.protect(&key, roots.iter().map(|(drv, _)| drv));
         let plan = self.planner.plan(roots).await?;
 
         if !self.cache_host && !plan.derivations.is_empty() {
@@ -96,12 +101,21 @@ impl Context {
     }
 
     pub async fn build(&self, job: Job) -> BuildResult {
-        match self.realise(&job).await {
+        let key = Roots::job_key(&job.drv);
+        self.roots.protect(
+            &key,
+            std::iter::once(&job.drv)
+                .chain(&job.fetch)
+                .chain(&job.outputs),
+        );
+        let result = match self.realise(&job).await {
             Ok(()) => BuildResult::Succeeded,
             Err(error) => BuildResult::Failed {
                 error: format!("{error:#}"),
             },
-        }
+        };
+        self.roots.release(&key);
+        result
     }
 
     async fn realise(&self, job: &Job) -> Result<()> {

@@ -1,7 +1,7 @@
 use std::process::Stdio;
 
 use color_eyre::eyre::{Result, WrapErr, bail};
-use futures_util::{Sink, SinkExt, StreamExt};
+use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use nix_relay_protocol::{
     BuildRequest, ClientEvent, ClientMessage, Outcome, VERSION, store_path_name,
 };
@@ -73,13 +73,38 @@ pub async fn remote(relay: &str, token: Option<&str>, request: BuildRequest) -> 
                 built += 1;
                 eprintln!("[{built}/{total}] built {}", store_path_name(&drv));
             }
-            ClientEvent::Finished { outcome } => return Ok(outcome),
+            ClientEvent::Finished { outcome } => {
+                if let Outcome::Succeeded {
+                    outputs,
+                    fetch_from,
+                } = &outcome
+                {
+                    keep_alive(&mut stream, fetch(outputs, fetch_from.as_deref())).await?;
+                }
+                let _ = sink.close().await;
+                return Ok(outcome);
+            }
         }
     }
     bail!("the relay closed the connection before the build finished")
 }
 
-pub async fn fetch(outputs: &[String], fetch_from: Option<&str>) -> Result<()> {
+async fn keep_alive<S, F>(stream: &mut S, work: F) -> Result<()>
+where
+    S: Stream<Item = Result<Message, tungstenite::Error>> + Unpin + Send,
+    F: Future<Output = Result<()>> + Send,
+{
+    tokio::pin!(work);
+    let mut open = true;
+    loop {
+        tokio::select! {
+            result = &mut work => return result,
+            message = stream.next(), if open => open = matches!(message, Some(Ok(_))),
+        }
+    }
+}
+
+async fn fetch(outputs: &[String], fetch_from: Option<&str>) -> Result<()> {
     if let Some(cache) = fetch_from {
         let mut copy = Command::new("nix");
         copy.args([
